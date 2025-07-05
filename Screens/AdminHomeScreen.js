@@ -56,7 +56,7 @@ export default function AdminHomeScreen({ navigation }) {
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#1E40AF" />
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>City Admin Panel</Text>
+        <Text style={styles.headerTitle}>City Admin</Text>
         <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
           <Ionicons name="log-out-outline" size={24} color="#fff" />
         </TouchableOpacity>

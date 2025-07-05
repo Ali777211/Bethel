@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Text,
   FlatList,
@@ -6,18 +6,17 @@ import {
   ActivityIndicator,
   TouchableOpacity,
   View,
-  RefreshControl,
   Alert,
-  TextInput,
   StatusBar,
 } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { auth, firestore } from "../Managers/FirebaseManager";
+import { firestore } from "../Managers/FirebaseManager";
 import {
   collection,
   query,
   where,
-  getDocs,
+  onSnapshot,
   doc,
   deleteDoc,
 } from "firebase/firestore";
@@ -25,52 +24,69 @@ import { Swipeable, RectButton } from "react-native-gesture-handler";
 import { Ionicons } from "@expo/vector-icons";
 
 export default function BusinessesListScreen({ navigation }) {
-  const currentUserId = auth.currentUser?.uid;
-
+  const [currentUserId, setCurrentUserId] = useState(null);
+  const [userRole, setUserRole] = useState(null);
   const [businesses, setBusinesses] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
-  const [searchQuery, setSearchQuery] = useState("");
 
-  const fetchBusinesses = async () => {
-    if (!currentUserId) return;
-
+  const loadUser = async () => {
     try {
-      const q = query(
-        collection(firestore, "businesses"),
-        where("ownerId", "==", currentUserId)
-      );
-
-      const snapshot = await getDocs(q);
-
-      const data = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
-
-      setBusinesses(data);
+      const userData = await AsyncStorage.getItem("userData");
+      if (userData) {
+        const parsed = JSON.parse(userData);
+        setCurrentUserId(parsed?.uid);
+        setUserRole(parsed?.role);
+      } else {
+        Alert.alert("Error", "User not found. Please log in again.");
+      }
     } catch (err) {
-      console.error("Fetch error:", err);
-      Alert.alert("Error", "Could not load businesses.");
+      console.error("Error loading user:", err);
+      Alert.alert("Error", "Could not load user data.");
     }
   };
 
   useEffect(() => {
-    fetchBusinesses().finally(() => setLoading(false));
+    loadUser();
   }, []);
 
-  const onRefresh = useCallback(async () => {
-    setRefreshing(true);
-    await fetchBusinesses();
-    setRefreshing(false);
-  }, []);
+  useEffect(() => {
+    if (!currentUserId) return;
+
+    setLoading(true);
+
+    const q =
+      userRole === "admin"
+        ? query(collection(firestore, "businesses"))
+        : query(
+            collection(firestore, "businesses"),
+            where("ownerId", "==", currentUserId)
+          );
+
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        const data = snapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
+        setBusinesses(data);
+        setLoading(false);
+      },
+      (err) => {
+        console.error("Fetch error:", err);
+        Alert.alert("Error", "Could not load businesses.");
+        setLoading(false);
+      }
+    );
+
+    return () => unsubscribe();
+  }, [currentUserId, userRole]);
 
   const deleteBusiness = async (id) => {
     try {
       setDeletingId(id);
       await deleteDoc(doc(firestore, "businesses", id));
-      setBusinesses((prev) => prev.filter((b) => b.id !== id));
     } catch (err) {
       console.error("Delete error:", err);
       Alert.alert("Error", "Could not delete business.");
@@ -105,11 +121,18 @@ export default function BusinessesListScreen({ navigation }) {
     <Swipeable renderRightActions={() => renderRightActions(item)}>
       <TouchableOpacity
         style={styles.card}
-        onPress={() => navigation.navigate("BusinessRegistration", { business: item })}
+        onPress={() =>
+          navigation.navigate("BusinessRegistrationScreen", { business: item })
+        }
       >
         <View style={styles.cardContent}>
-          <Ionicons name="business-outline" size={24} color="#2563EB" style={{ marginRight: 12 }} />
-          <View style={{ flex: 1 }}>
+          <Ionicons
+            name="business-outline"
+            size={20}
+            color="#000"
+            style={{ marginRight: 8 }}
+          />
+          <View>
             <Text style={styles.cardTitle}>{item.name}</Text>
             <Text style={styles.cardSubtitle}>{item.type || "Business"}</Text>
           </View>
@@ -118,52 +141,50 @@ export default function BusinessesListScreen({ navigation }) {
     </Swipeable>
   );
 
-  const filtered = businesses.filter((b) =>
-    b.name?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  let screenTitle = userRole === "admin" ? "Businesses" : "My Businesses";
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#F8FAFC" />
+      <StatusBar barStyle="dark-content" backgroundColor="#fff" />
+
+      {/* Header */}
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => navigation.goBack()}>
+          <Ionicons name="arrow-back" size={24} color="#000" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>{screenTitle}</Text>
+        <View style={{ width: 24 }} />
+      </View>
 
       {loading ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#2563EB" />
-          <Text style={styles.loadingText}>Loading...</Text>
+          <ActivityIndicator size="large" color="#000" />
+          <Text>Loading...</Text>
         </View>
       ) : (
         <>
-          <View style={styles.searchContainer}>
-            <Ionicons name="search" size={20} color="#9CA3AF" />
-            <TextInput
-              style={styles.searchInput}
-              placeholder="Search businesses..."
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-            />
-          </View>
-
           <FlatList
-            data={filtered}
+            data={businesses}
             keyExtractor={(item) => item.id}
             renderItem={renderItem}
-            refreshControl={
-              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={["#2563EB"]} />
-            }
+            contentContainerStyle={{ paddingBottom: 80 }} // reserve space for button
             ListEmptyComponent={
               <View style={styles.emptyContainer}>
-                <Text style={styles.emptyText}>No businesses found.</Text>
+                <Text>No businesses found.</Text>
               </View>
             }
-            contentContainerStyle={{ paddingBottom: 20 }}
           />
 
-          <TouchableOpacity
-            style={styles.fab}
-            onPress={() => navigation.navigate("BusinessRegistration")}
-          >
-            <Ionicons name="add" size={24} color="#fff" />
-          </TouchableOpacity>
+          {/* Add New Business Button at Bottom */}
+          <View style={styles.bottomButtonContainer}>
+            <TouchableOpacity
+              style={styles.addButton}
+              onPress={() => navigation.navigate("BusinessRegistrationScreen")}
+            >
+              <Ionicons name="add" size={20} color="#fff" />
+              <Text style={styles.addButtonText}>Add New Business</Text>
+            </TouchableOpacity>
+          </View>
         </>
       )}
     </SafeAreaView>
@@ -171,37 +192,25 @@ export default function BusinessesListScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#F8FAFC",
-  },
-  searchContainer: {
+  container: { flex: 1, backgroundColor: "#fff" },
+  header: {
     flexDirection: "row",
-    backgroundColor: "#fff",
-    margin: 16,
-    borderRadius: 8,
-    paddingHorizontal: 12,
     alignItems: "center",
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
+    padding: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#ddd",
+    justifyContent: "space-between",
   },
-  searchInput: {
-    flex: 1,
-    marginLeft: 8,
-    paddingVertical: 8,
-    fontSize: 16,
-    color: "#374151",
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "#000",
   },
   card: {
-    backgroundColor: "#fff",
-    marginHorizontal: 16,
-    marginVertical: 6,
-    borderRadius: 10,
-    padding: 16,
-    flexDirection: "row",
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
+    backgroundColor: "#eee",
+    margin: 10,
+    padding: 10,
+    borderRadius: 6,
   },
   cardContent: {
     flexDirection: "row",
@@ -209,49 +218,44 @@ const styles = StyleSheet.create({
   },
   cardTitle: {
     fontSize: 16,
-    fontWeight: "600",
-    color: "#1F2937",
+    fontWeight: "bold",
   },
   cardSubtitle: {
     fontSize: 14,
-    color: "#6B7280",
   },
   deleteButton: {
-    backgroundColor: "#EF4444",
+    backgroundColor: "red",
     justifyContent: "center",
     alignItems: "center",
     width: 70,
-    borderRadius: 10,
-    marginVertical: 6,
-  },
-  fab: {
-    position: "absolute",
-    bottom: 30,
-    right: 20,
-    backgroundColor: "#2563EB",
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    justifyContent: "center",
-    alignItems: "center",
-    elevation: 6,
   },
   emptyContainer: {
     alignItems: "center",
-    marginTop: 40,
-  },
-  emptyText: {
-    fontSize: 16,
-    color: "#6B7280",
+    marginTop: 20,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
   },
-  loadingText: {
-    marginTop: 12,
-    color: "#6B7280",
+  bottomButtonContainer: {
+    position: "absolute",
+    bottom: 20,
+    left: 20,
+    right: 20,
+  },
+  addButton: {
+    flexDirection: "row",
+    backgroundColor: "#007BFF",
+    padding: 16,
+    borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  addButtonText: {
+    color: "#fff",
+    marginLeft: 8,
+    fontWeight: "600",
     fontSize: 16,
   },
 });

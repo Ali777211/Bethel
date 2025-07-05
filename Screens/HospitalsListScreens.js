@@ -11,41 +11,73 @@ import {
   StatusBar,
   RefreshControl,
 } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { collection, onSnapshot, deleteDoc, doc } from "firebase/firestore";
 import { firestore } from "../Managers/FirebaseManager";
 import { Ionicons } from "@expo/vector-icons";
+import { Swipeable } from "react-native-gesture-handler";
 
-export default function HospitalsListScreen({ navigation, route }) {
-  // We expect user object from navigation params
-  const { user } = route.params || {};
-  const isAdmin = user?.role === "admin";
-
+export default function HospitalsListScreen({ navigation }) {
   const [hospitals, setHospitals] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
+  const [user, setUser] = useState(null);
 
   useEffect(() => {
-    const unsubscribe = onSnapshot(
-      collection(firestore, "hospitals"),
-      (snapshot) => {
-        const list = snapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        }));
-        setHospitals(list);
-        setLoading(false);
-        setRefreshing(false);
-      },
-      (error) => {
-        console.error(error);
-        setLoading(false);
-        setRefreshing(false);
-        Alert.alert("Error", "Could not load hospitals.");
+    const loadUser = async () => {
+      try {
+        const userData = await AsyncStorage.getItem("userData");
+        if (userData) {
+          setUser(JSON.parse(userData));
+        }
+      } catch (err) {
+        console.error("Failed to load user from AsyncStorage:", err);
       }
-    );
+    };
 
-    return () => unsubscribe();
+    loadUser();
+
+    let unsubscribe;
+
+    const setupRealTimeListener = () => {
+      try {
+        const hospitalsRef = collection(firestore, "hospitals");
+        unsubscribe = onSnapshot(
+          hospitalsRef,
+          (snapshot) => {
+            const hospitalList = snapshot.docs.map((doc) => ({
+              id: doc.id,
+              ...doc.data(),
+            }));
+            setHospitals(hospitalList);
+            setLoading(false);
+            setRefreshing(false);
+          },
+          (error) => {
+            console.error("Snapshot error:", error);
+            setLoading(false);
+            setRefreshing(false);
+            Alert.alert(
+              "Error",
+              "Could not load hospitals. Please try again later."
+            );
+          }
+        );
+      } catch (error) {
+        console.error("Setup error:", error);
+        setLoading(false);
+        setRefreshing(false);
+      }
+    };
+
+    setupRealTimeListener();
+
+    return () => {
+      if (unsubscribe) {
+        unsubscribe();
+      }
+    };
   }, []);
 
   const onRefresh = () => {
@@ -53,23 +85,27 @@ export default function HospitalsListScreen({ navigation, route }) {
     setTimeout(() => setRefreshing(false), 1000);
   };
 
-  const deleteHospital = async (id) => {
+  const handleDelete = async (hospitalId) => {
     Alert.alert(
       "Delete Hospital",
-      "Are you sure you want to delete this hospital?",
+      "Are you sure you want to permanently delete this hospital? This action cannot be undone.",
       [
         { text: "Cancel", style: "cancel" },
         {
           text: "Delete",
           style: "destructive",
           onPress: async () => {
-            setDeletingId(id);
+            setDeletingId(hospitalId);
             try {
-              await deleteDoc(doc(firestore, "hospitals", id));
-              Alert.alert("Deleted", "Hospital deleted successfully.");
+              await deleteDoc(doc(firestore, "hospitals", hospitalId));
+              setHospitals((prev) => prev.filter((h) => h.id !== hospitalId));
+              Alert.alert("Success", "Hospital deleted successfully.");
             } catch (error) {
-              console.error(error);
-              Alert.alert("Error", "Failed to delete hospital.");
+              console.error("Delete error:", error);
+              Alert.alert(
+                "Error",
+                "Failed to delete hospital. Please try again."
+              );
             } finally {
               setDeletingId(null);
             }
@@ -79,110 +115,183 @@ export default function HospitalsListScreen({ navigation, route }) {
     );
   };
 
-  const renderHospital = ({ item }) => (
-    <View style={[styles.card, deletingId === item.id && { opacity: 0.5 }]}>
+  const renderRightActions = (item) => (
+    <View style={styles.swipeActionsContainer}>
       <TouchableOpacity
-        style={{ flex: 1, flexDirection: "row", alignItems: "center" }}
+        style={styles.deleteButton}
+        onPress={() => handleDelete(item.id)}
+        activeOpacity={0.8}
+      >
+        <Ionicons name="trash" size={20} color="#fff" />
+        <Text style={styles.deleteText}>Delete</Text>
+      </TouchableOpacity>
+    </View>
+  );
+
+  const renderHospitalCard = ({ item }) => (
+    <Swipeable
+      renderRightActions={() =>
+        user?.role === "admin" && renderRightActions(item)
+      }
+    >
+      <TouchableOpacity
         onPress={() =>
-          navigation.navigate("HospitalDetail", { hospital: item, user })
+          navigation.navigate("HospitalDetailScreen", { hospital: item })
         }
+        style={[
+          styles.hospitalCard,
+          deletingId === item.id && styles.cardDeleting,
+        ]}
         disabled={!!deletingId}
       >
-        <Ionicons name="medkit" size={28} color="#3B82F6" style={{ marginRight: 12 }} />
-        <View style={{ flex: 1 }}>
-          <Text style={styles.name}>{item.name}</Text>
-          <Text style={styles.subtext}>{item.type}</Text>
-          <Text style={styles.subtext}>{item.location || "No location"}</Text>
+        <View style={styles.cardHeader}>
+          <View style={styles.iconContainer}>
+            <Ionicons name="medkit" size={24} color="#2563EB" />
+          </View>
+          <View style={styles.infoContainer}>
+            <Text style={styles.hospitalName} numberOfLines={1}>
+              {item.name}
+            </Text>
+            <Text style={styles.hospitalType}>{item.type}</Text>
+            <Text style={styles.hospitalLocation} numberOfLines={1}>
+              {item.location || "No location"}
+            </Text>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color="#2563EB" />
         </View>
       </TouchableOpacity>
+    </Swipeable>
+  );
 
-      {isAdmin && (
+  const renderHeader = () => (
+    <View style={styles.headerContainer}>
+      <View style={{ flexDirection: "row", alignItems: "center" }}>
         <TouchableOpacity
-          style={styles.deleteBtn}
-          onPress={() => deleteHospital(item.id)}
+          onPress={() => navigation.goBack()}
+          style={{ marginRight: 8, padding: 4 }}
         >
-          <Ionicons name="trash" size={20} color="#fff" />
+          <Ionicons name="arrow-back" size={20} color="#2563EB" />
         </TouchableOpacity>
-      )}
+        <Text style={styles.headerTitle}>Hospitals</Text>
+      </View>
+    </View>
+  );
+
+  const renderEmptyState = () => (
+    <View style={styles.emptyState}>
+      <Ionicons name="medkit-outline" size={40} color="#2563EB" />
+      <Text style={styles.emptyTitle}>No Hospitals Found</Text>
+      <Text style={styles.emptySubtitle}>Add a hospital to get started.</Text>
     </View>
   );
 
   if (loading) {
     return (
-      <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#3B82F6" />
-        <Text style={{ marginTop: 8 }}>Loading hospitals...</Text>
-      </View>
+      <SafeAreaView style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#2563EB" />
+        <Text style={styles.loadingText}>Loading hospitals...</Text>
+      </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#f2f2f2" />
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Hospitals</Text>
-        {isAdmin && (
-          <TouchableOpacity
-            style={styles.addButton}
-            onPress={() => navigation.navigate("AddHospitalScreen", { user })}
-          >
-            <Ionicons name="add" size={24} color="#fff" />
-          </TouchableOpacity>
-        )}
-      </View>
-
+    <SafeAreaView style={styles.safeArea}>
+      <StatusBar barStyle="dark-content" />
+      {renderHeader()}
       {hospitals.length === 0 ? (
-        <View style={styles.centered}>
-          <Ionicons name="medkit-outline" size={60} color="#aaa" />
-          <Text style={{ marginTop: 12 }}>No hospitals found.</Text>
-        </View>
+        renderEmptyState()
       ) : (
         <FlatList
           data={hospitals}
           keyExtractor={(item) => item.id}
-          renderItem={renderHospital}
+          renderItem={renderHospitalCard}
+          contentContainerStyle={styles.listContent}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
           }
-          contentContainerStyle={{ padding: 12 }}
         />
+      )}
+      {user?.role === "admin" && (
+        <TouchableOpacity
+          style={styles.addButton}
+          onPress={() => navigation.navigate("AddHospitalScreen")}
+        >
+          <Text style={styles.addButtonText}>Add New Hospital</Text>
+        </TouchableOpacity>
       )}
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#f2f2f2" },
-  centered: { flex: 1, justifyContent: "center", alignItems: "center" },
-  header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    backgroundColor: "#fff",
-    padding: 16,
+  safeArea: { flex: 1, backgroundColor: "#fff" },
+  loadingContainer: { flex: 1, justifyContent: "center", alignItems: "center" },
+  loadingText: { marginTop: 8, fontSize: 14, color: "#333" },
+  headerContainer: {
+    padding: 10,
+    backgroundColor: "#eee",
     borderBottomWidth: 1,
-    borderBottomColor: "#ddd",
+    borderBottomColor: "#ccc",
   },
-  headerTitle: { fontSize: 20, fontWeight: "600" },
-  addButton: {
-    backgroundColor: "#3B82F6",
-    padding: 8,
-    borderRadius: 6,
-  },
-  card: {
-    backgroundColor: "#fff",
+  headerTitle: { fontSize: 20, fontWeight: "bold", color: "#000" },
+  listContent: { padding: 10 },
+  hospitalCard: {
+    backgroundColor: "#f2f2f2",
+    padding: 10,
+    marginBottom: 8,
     flexDirection: "row",
     alignItems: "center",
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: "#ddd",
   },
-  name: { fontSize: 16, fontWeight: "600" },
-  subtext: { fontSize: 12, color: "#555" },
-  deleteBtn: {
-    backgroundColor: "#EF4444",
+  cardDeleting: { opacity: 0.5 },
+  cardHeader: { flexDirection: "row", alignItems: "center", flex: 1 },
+  iconContainer: {
+    marginRight: 8,
+    backgroundColor: "#ddd",
+    padding: 6,
+  },
+  infoContainer: { flex: 1 },
+  hospitalName: { fontSize: 16, fontWeight: "bold", color: "#000" },
+  hospitalType: { fontSize: 13, color: "#555" },
+  hospitalLocation: { fontSize: 13, color: "#777" },
+  swipeActionsContainer: {
+    justifyContent: "center",
+    alignItems: "flex-end",
+    paddingHorizontal: 10,
+  },
+  deleteButton: {
+    backgroundColor: "#cc0000",
     padding: 8,
-    borderRadius: 6,
-    marginLeft: 12,
+  },
+  deleteText: { color: "#fff", fontSize: 12 },
+  addButton: {
+    backgroundColor: "#2563EB",
+    padding: 14,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  addButtonText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  emptyState: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 10,
+  },
+  emptyTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "#000",
+    marginTop: 12,
+  },
+  emptySubtitle: {
+    fontSize: 13,
+    color: "#555",
+    textAlign: "center",
+    marginTop: 6,
   },
 });

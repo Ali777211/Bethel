@@ -7,11 +7,10 @@ import {
   ActivityIndicator,
   TouchableOpacity,
   Alert,
-  Image,
   SafeAreaView,
-  TextInput,
   StatusBar,
 } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
 import { auth, firestore } from "../Managers/FirebaseManager";
 import {
@@ -22,231 +21,258 @@ import {
   doc,
   onSnapshot,
 } from "firebase/firestore";
-import { Swipeable } from "react-native-gesture-handler";
 
-export default function UserVehiclesListScreen({ navigation, route }) {
-  const { user } = route.params || {};
-  const userId = user?.uid || auth.currentUser?.uid;
-  const userRole = user?.role;
-
+export default function UserVehiclesListScreen({ navigation }) {
+  const [user, setUser] = useState(null);
   const [vehicles, setVehicles] = useState([]);
-  const [filteredVehicles, setFilteredVehicles] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [selectedFilter, setSelectedFilter] = useState("all");
+  const [refreshing, setRefreshing] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
 
   useEffect(() => {
-    if (!userId) return;
+    const loadUser = async () => {
+      try {
+        const userData = await AsyncStorage.getItem("userData");
+        if (userData) {
+          const parsed = JSON.parse(userData);
+          setUser(parsed);
+        } else {
+          Alert.alert("Error", "No user found. Please log in again.");
+        }
+      } catch (err) {
+        console.error("Error loading user:", err);
+        Alert.alert("Error", "Failed to load user.");
+      }
+    };
+
+    loadUser();
+  }, []);
+
+  useEffect(() => {
+    if (!user) return;
+
+    const userId = user?.uid || auth.currentUser?.uid;
+    const userRole = user?.role;
 
     let q;
     if (userRole === "admin") {
-      q = collection(firestore, "vehicles");
+      q = query(collection(firestore, "vehicles"));
     } else {
-      q = query(collection(firestore, "vehicles"), where("ownerId", "==", userId));
+      q = query(
+        collection(firestore, "vehicles"),
+        where("ownerId", "==", userId)
+      );
     }
 
     const unsubscribe = onSnapshot(
       q,
       (snapshot) => {
-        const data = snapshot.docs.map((doc) => ({
+        const fetched = snapshot.docs.map((doc) => ({
           id: doc.id,
           ...doc.data(),
         }));
-        setVehicles(data);
+        setVehicles(fetched);
         setLoading(false);
+        setRefreshing(false);
       },
-      (err) => {
-        console.error(err);
+      (error) => {
+        console.error("Error fetching vehicles:", error);
         Alert.alert("Error", "Could not load vehicles.");
         setLoading(false);
+        setRefreshing(false);
       }
     );
 
     return () => unsubscribe();
-  }, [userId, userRole]);
+  }, [user]);
 
-  useEffect(() => {
-    let filtered = vehicles;
-
-    if (searchQuery.trim()) {
-      filtered = filtered.filter(
-        (v) =>
-          v.make?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          v.model?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          v.number?.toLowerCase().includes(searchQuery.toLowerCase())
-      );
-    }
-
-    if (selectedFilter !== "all") {
-      filtered = filtered.filter(
-        (v) => v.type?.toLowerCase() === selectedFilter
-      );
-    }
-
-    setFilteredVehicles(filtered);
-  }, [vehicles, searchQuery, selectedFilter]);
-
-  const deleteVehicle = async (id) => {
+  const deleteVehicle = async (id, vehicleName) => {
     setDeletingId(id);
     try {
       await deleteDoc(doc(firestore, "vehicles", id));
-      Alert.alert("Deleted", "Vehicle deleted successfully.");
+      Alert.alert("Deleted", `${vehicleName} has been deleted.`);
     } catch (err) {
-      console.error(err);
+      console.error("Delete error:", err.message);
       Alert.alert("Error", "Could not delete vehicle.");
     } finally {
       setDeletingId(null);
     }
   };
 
+  const onRefresh = () => {
+    setRefreshing(true);
+    // onSnapshot auto updates
+  };
+
   const renderItem = ({ item }) => (
-    <Swipeable
-      renderRightActions={() => (
-        <TouchableOpacity
-          style={styles.deleteBtn}
-          onPress={() =>
-            Alert.alert("Delete", "Delete this vehicle?", [
-              { text: "Cancel" },
-              { text: "Delete", onPress: () => deleteVehicle(item.id) },
-            ])
-          }
-        >
-          {deletingId === item.id ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Ionicons name="trash" size={20} color="#fff" />
-          )}
-        </TouchableOpacity>
-      )}
+    <TouchableOpacity
+      onPress={() => navigation.navigate("AddVehicleScreen", { vehicle: item })}
+      style={styles.listItem}
     >
-      <View style={styles.card}>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.title}>{item.make} {item.model}</Text>
-          <Text style={styles.sub}>{item.number}</Text>
-          <Text style={styles.sub}>{item.type}</Text>
-        </View>
-        <TouchableOpacity
-          onPress={() => navigation.navigate("AddVehicleScreen", { vehicle: item })}
-        >
-          <Ionicons name="create" size={20} color="#3B82F6" />
-        </TouchableOpacity>
+      <View>
+        <Text style={styles.itemTitle}>
+          {item.make} {item.model}
+        </Text>
+        <Text style={styles.itemSubtitle}>{item.number}</Text>
       </View>
-    </Swipeable>
+      <TouchableOpacity
+        onPress={() =>
+          Alert.alert(
+            "Delete Vehicle",
+            `Delete ${item.make} ${item.model}?`,
+            [
+              { text: "Cancel", style: "cancel" },
+              {
+                text: "Delete",
+                style: "destructive",
+                onPress: () => deleteVehicle(item.id, `${item.make} ${item.model}`),
+              },
+            ]
+          )
+        }
+        disabled={deletingId === item.id}
+      >
+        {deletingId === item.id ? (
+          <ActivityIndicator size="small" color="#000" />
+        ) : (
+          <Ionicons name="trash" size={20} color="#cc0000" />
+        )}
+      </TouchableOpacity>
+    </TouchableOpacity>
   );
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.centered}>
-        <ActivityIndicator size="large" color="#3B82F6" />
-        <Text style={{ marginTop: 8 }}>Loading vehicles...</Text>
+      <SafeAreaView style={styles.container}>
+        <StatusBar barStyle="dark-content" backgroundColor="#fff" />
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#000" />
+          <Text style={{ marginTop: 8 }}>Loading Vehicles...</Text>
+        </View>
       </SafeAreaView>
     );
   }
 
+  const userRole = user?.role;
+
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#f2f2f2" />
+      <StatusBar barStyle="dark-content" backgroundColor="#fff" />
+
+      {/* Header */}
       <View style={styles.header}>
-        <TextInput
-          placeholder="Search..."
-          style={styles.search}
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-        />
-        <View style={styles.filterRow}>
-          {["all", "car", "motorcycle", "truck"].map((type) => (
-            <TouchableOpacity
-              key={type}
-              style={[
-                styles.filterBtn,
-                selectedFilter === type && styles.filterBtnActive,
-              ]}
-              onPress={() => setSelectedFilter(type)}
-            >
-              <Text
-                style={[
-                  styles.filterText,
-                  selectedFilter === type && { color: "#fff" },
-                ]}
-              >
-                {type}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
+        <TouchableOpacity onPress={() => navigation.goBack()}>
+          <Ionicons name="arrow-back" size={24} color="#000" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>
+          {userRole === "admin" ? "All Vehicles" : "My Vehicles"}
+        </Text>
+        <View style={{ width: 24 }} />
       </View>
 
+      {/* List */}
       <FlatList
-        data={filteredVehicles}
+        data={vehicles}
         keyExtractor={(item) => item.id}
         renderItem={renderItem}
+        refreshing={refreshing}
+        onRefresh={onRefresh}
+        contentContainerStyle={{
+          paddingTop: 8,
+          paddingBottom: userRole !== "admin" ? 80 : 16,
+        }}
         ListEmptyComponent={
-          <View style={styles.centered}>
-            <Text>No vehicles found.</Text>
+          <View style={styles.emptyContainer}>
+            <Text style={{ color: "#555" }}>No vehicles found.</Text>
           </View>
         }
-        contentContainerStyle={{ padding: 16 }}
       />
 
+      {/* Add New Vehicle Button */}
       {userRole !== "admin" && (
-        <TouchableOpacity
-          style={styles.addBtn}
-          onPress={() => navigation.navigate("AddVehicleScreen")}
-        >
-          <Ionicons name="add" size={24} color="#fff" />
-        </TouchableOpacity>
+        <View style={styles.bottomButtonContainer}>
+          <TouchableOpacity
+            style={styles.addNewButton}
+            onPress={() => navigation.navigate("AddVehicleScreen")}
+          >
+            <Ionicons name="add" size={20} color="#fff" />
+            <Text style={styles.addNewButtonText}>Add New Vehicle</Text>
+          </TouchableOpacity>
+        </View>
       )}
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#f2f2f2" },
-  centered: { flex: 1, justifyContent: "center", alignItems: "center" },
-  header: { padding: 16, backgroundColor: "#fff" },
-  search: {
-    backgroundColor: "#f0f0f0",
-    padding: 8,
-    borderRadius: 8,
-    marginBottom: 8,
+  container: { flex: 1, backgroundColor: "#fff" },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
   },
-  filterRow: { flexDirection: "row", gap: 8 },
-  filterBtn: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-    backgroundColor: "#e5e7eb",
-  },
-  filterBtnActive: { backgroundColor: "#3B82F6" },
-  filterText: { fontSize: 12, color: "#333" },
-  card: {
+  header: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#fff",
+    justifyContent: "space-between",
     padding: 12,
-    borderRadius: 8,
-    marginBottom: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: "#ddd",
   },
-  title: { fontWeight: "bold", fontSize: 16 },
-  sub: { fontSize: 12, color: "#666" },
-  deleteBtn: {
-    backgroundColor: "#EF4444",
-    justifyContent: "center",
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "#000",
+  },
+  listItem: {
+    flexDirection: "row",
+    justifyContent: "space-between",
     alignItems: "center",
-    width: 60,
+    backgroundColor: "#f8f9fa",
+    padding: 14,
+    marginHorizontal: 12,
+    marginVertical: 6,
     borderRadius: 8,
-    margin: 4,
+    // Shadow for iOS
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    // Elevation for Android
+    elevation: 2,
   },
-  addBtn: {
+  itemTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#111",
+  },
+  itemSubtitle: {
+    fontSize: 13,
+    color: "#555",
+    marginTop: 2,
+  },
+  emptyContainer: {
+    alignItems: "center",
+    marginTop: 50,
+  },
+  bottomButtonContainer: {
     position: "absolute",
-    right: 20,
     bottom: 20,
-    backgroundColor: "#3B82F6",
-    borderRadius: 30,
-    width: 60,
-    height: 60,
+    left: 20,
+    right: 20,
+  },
+  addNewButton: {
+    flexDirection: "row",
+    backgroundColor: "#007BFF",
+    padding: 16,
+    borderRadius: 8,
     justifyContent: "center",
     alignItems: "center",
+  },
+  addNewButtonText: {
+    color: "#fff",
+    fontWeight: "600",
+    marginLeft: 8,
+    fontSize: 16,
   },
 });

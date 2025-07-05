@@ -36,10 +36,12 @@ export default function LoginScreen({ navigation }) {
 
       if (userDocSnap.exists()) {
         const userData = userDocSnap.data();
+        userData.uid = user.uid;
 
         if (userData.createdAt?.toDate) {
           userData.createdAt = userData.createdAt.toDate().toISOString();
         }
+        console.log("UserData",userData)
 
         await AsyncStorage.setItem("userData", JSON.stringify(userData));
 
