@@ -202,26 +202,24 @@ export default function BusinessRegistrationScreen({ route, navigation }) {
 
           {editMode && (
             <View>
-              {loading ? (
-                <ActivityIndicator size="large" color="#007BFF" />
-              ) : (
-                <TouchableOpacity
-                  style={[
-                    styles.button,
-                    !formValid && styles.buttonDisabled,
-                  ]}
-                  onPress={handleSubmit}
-                  disabled={!formValid}
-                >
-                  <Text style={styles.buttonText}>
-                    {isEditing ? "Update Business" : "Register Business"}
-                  </Text>
-                </TouchableOpacity>
-              )}
+              <TouchableOpacity
+                style={[
+                  styles.button,
+                  !formValid && styles.buttonDisabled,
+                ]}
+                onPress={handleSubmit}
+                disabled={!formValid || loading}
+              >
+                <Text style={styles.buttonText}>
+                  {isEditing ? "Update Business" : "Register Business"}
+                </Text>
+              </TouchableOpacity>
+
               {isEditing && (
                 <TouchableOpacity
                   style={styles.cancelButton}
                   onPress={() => setEditMode(false)}
+                  disabled={loading}
                 >
                   <Text style={styles.cancelText}>Cancel</Text>
                 </TouchableOpacity>
@@ -230,6 +228,13 @@ export default function BusinessRegistrationScreen({ route, navigation }) {
           )}
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {/* Fullscreen loader overlay */}
+      {loading && (
+        <View style={styles.loaderOverlay}>
+          <ActivityIndicator size="large" color="#007BFF" />
+        </View>
+      )}
     </SafeAreaView>
   );
 }
@@ -290,4 +295,16 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   cancelText: { color: "#555" },
+  loaderOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(255,255,255,0.7)",
+    justifyContent: "center",
+    alignItems: "center",
+    zIndex: 10,
+    elevation: 10,
+  },
 });

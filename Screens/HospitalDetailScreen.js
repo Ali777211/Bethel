@@ -8,32 +8,43 @@ import {
   ScrollView,
   TouchableOpacity,
 } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { collection, query, where, onSnapshot } from "firebase/firestore";
 import { firestore } from "../Managers/FirebaseManager";
 import { Ionicons } from "@expo/vector-icons";
 
 export default function HospitalDetailScreen({ route, navigation }) {
-  const { hospital, user } = route.params;
-
+  const { hospital } = route.params;
+  const [user, setUser] = useState(null);
   const [doctors, setDoctors] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Fetch user from AsyncStorage
+    const fetchUser = async () => {
+      try {
+        const jsonValue = await AsyncStorage.getItem("userData");
+        if (jsonValue) {
+          setUser(JSON.parse(jsonValue));
+        }
+      } catch (e) {
+        console.error("Failed to load user from storage", e);
+      }
+    };
+    fetchUser();
+  }, []);
+
+  useEffect(() => {
     setLoading(true);
-
-    const q = query(
-      collection(firestore, "doctors"),
-      where("hospitalId", "==", hospital.id)
-    );
-
+    const q = query(collection(firestore, "doctors"), where("hospitalId", "==", hospital.id));
     const unsubscribe = onSnapshot(
       q,
-      (snapshot) => {
-        const docs = snapshot.docs.map((doc) => ({
+      (querySnapshot) => {
+        const doctorsData = querySnapshot.docs.map((doc) => ({
           id: doc.id,
           ...doc.data(),
         }));
-        setDoctors(docs);
+        setDoctors(doctorsData);
         setLoading(false);
       },
       (error) => {
@@ -41,82 +52,76 @@ export default function HospitalDetailScreen({ route, navigation }) {
         setLoading(false);
       }
     );
-
     return () => unsubscribe();
   }, [hospital.id]);
 
-  const isAdmin = user?.role === "admin";
-
   const handleDoctorPress = (doctor) => {
-    if (!isAdmin) {
+    if (user?.role !== "admin") {
       navigation.navigate("AppointmentScreen", { doctor });
     }
   };
+
+  const isAdmin = user?.role === "admin";
 
   return (
     <SafeAreaView style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={24} color="#000" />
+          <Ionicons name="arrow-back" size={24} color="black" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Hospital Details</Text>
-        <View style={{ width: 24 }} />
+        <Text style={styles.headerText}>Hospital Details</Text>
       </View>
 
-      <ScrollView style={styles.scroll}>
+      <ScrollView style={{ padding: 10 }}>
         {/* Hospital Info */}
-        <View style={styles.hospitalBox}>
-          <Ionicons name="medkit-outline" size={30} color="#000" />
+        <View style={styles.card}>
           <Text style={styles.hospitalName}>{hospital.name}</Text>
-          <Text style={styles.hospitalText}>{hospital.type}</Text>
-          <Text style={styles.hospitalText}>{hospital.location}</Text>
+          <Text style={styles.metaText}>Type: {hospital.type}</Text>
+          <Text style={styles.metaText}>Location: {hospital.location}</Text>
         </View>
 
-        {/* Doctors */}
-        <Text style={styles.sectionTitle}>Available Doctors</Text>
+        {/* Doctors Section */}
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Available Doctors ({doctors.length})</Text>
+        </View>
 
         {loading ? (
           <View style={styles.center}>
-            <ActivityIndicator size="large" color="#000" />
-            <Text style={styles.loadingText}>Loading doctors...</Text>
+            <ActivityIndicator size="large" color="blue" />
+            <Text>Loading doctors...</Text>
           </View>
         ) : doctors.length === 0 ? (
           <View style={styles.center}>
-            <Ionicons name="medical-outline" size={40} color="#999" />
-            <Text style={styles.emptyText}>No doctors available</Text>
+            <Ionicons name="medical-outline" size={40} color="gray" />
+            <Text>No Doctors Available</Text>
           </View>
         ) : (
-          <View>
-            {doctors.map((doctor) => (
-              <TouchableOpacity
-                key={doctor.id}
-                onPress={() => handleDoctorPress(doctor)}
-                disabled={isAdmin}
-                style={[
-                  styles.doctorBox,
-                  isAdmin && { opacity: 0.6 },
-                ]}
-              >
-                <Ionicons
-                  name="person-outline"
-                  size={22}
-                  color="#000"
-                  style={{ marginRight: 10 }}
-                />
-                <View style={{ flex: 1 }}>
+          doctors.map((doctor) => (
+            <TouchableOpacity
+              key={doctor.id}
+              style={[styles.doctorCard, isAdmin && styles.disabledCard]}
+              onPress={() => handleDoctorPress(doctor)}
+              disabled={isAdmin}
+              activeOpacity={0.8}
+            >
+              <View style={styles.doctorRow}>
+                <Ionicons name="person-circle-outline" size={40} color="#4B5563" />
+                <View style={{ marginLeft: 10 }}>
                   <Text style={styles.doctorName}>{doctor.name}</Text>
-                  <Text style={styles.doctorRole}>{doctor.role}</Text>
-                  <Text style={styles.doctorInfo}>
+                  <Text style={styles.doctorSpeciality}>{doctor.role}</Text>
+                  <Text style={styles.doctorAvailability}>
                     {doctor.availability || "No availability info"}
                   </Text>
                 </View>
-                {isAdmin && (
-                  <Text style={styles.adminLabel}>Admin</Text>
-                )}
-              </TouchableOpacity>
-            ))}
-          </View>
+              </View>
+              {!isAdmin ? (
+                <Text style={styles.hint}>Tap to book appointment</Text>
+              ) : (
+                null
+              )}
+            </TouchableOpacity>
+          ))
         )}
       </ScrollView>
     </SafeAreaView>
@@ -124,61 +129,90 @@ export default function HospitalDetailScreen({ route, navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#fff" },
+  container: {
+    flex: 1,
+    backgroundColor: "#fff",
+  },
   header: {
+    padding: 10,
     flexDirection: "row",
     alignItems: "center",
-    padding: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: "#ddd",
+    backgroundColor: "#f2f2f2",
   },
-  headerTitle: {
-    flex: 1,
-    textAlign: "center",
-    fontSize: 16,
-    fontWeight: "bold",
-    color: "#000",
-  },
-  scroll: { padding: 12 },
-  hospitalBox: {
-    alignItems: "center",
-    padding: 12,
-    borderWidth: 1,
-    borderColor: "#ddd",
-    borderRadius: 6,
-    marginBottom: 20,
-  },
-  hospitalName: {
+  headerText: {
     fontSize: 18,
     fontWeight: "bold",
-    marginTop: 6,
-    color: "#000",
+    marginLeft: 10,
   },
-  hospitalText: { fontSize: 14, color: "#333", marginTop: 2 },
+  card: {
+    backgroundColor: "#f0f0f0",
+    padding: 12,
+    marginBottom: 10,
+  },
+  hospitalName: {
+    fontSize: 20,
+    fontWeight: "bold",
+  },
+  metaText: {
+    fontSize: 14,
+    color: "gray",
+  },
+  sectionHeader: {
+    marginTop: 10,
+    marginBottom: 10,
+  },
   sectionTitle: {
     fontSize: 16,
     fontWeight: "bold",
-    marginBottom: 10,
-    color: "#000",
   },
-  center: { alignItems: "center", paddingVertical: 20 },
-  loadingText: { marginTop: 6, color: "#333" },
-  emptyText: { marginTop: 6, color: "#333" },
-  doctorBox: {
+  center: {
+    alignItems: "center",
+    marginVertical: 20,
+  },
+  doctorCard: {
+    backgroundColor: "#e6e6e6",
+    padding: 12,
+    marginBottom: 10,
+  },
+  disabledCard: {
+    opacity: 0.6,
+  },
+  doctorRow: {
     flexDirection: "row",
     alignItems: "center",
-    padding: 10,
-    borderWidth: 1,
-    borderColor: "#ddd",
-    borderRadius: 6,
-    marginBottom: 10,
   },
-  doctorName: { fontSize: 15, fontWeight: "bold", color: "#000" },
-  doctorRole: { fontSize: 13, color: "#555" },
-  doctorInfo: { fontSize: 12, color: "#777" },
-  adminLabel: {
-    fontSize: 11,
-    color: "#D97706",
-    marginLeft: 6,
+  doctorName: {
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  doctorSpeciality: {
+    fontSize: 14,
+    color: "gray",
+  },
+  doctorAvailability: {
+    fontSize: 12,
+    color: "#1E40AF",
+  },
+  hint: {
+    fontSize: 12,
+    color: "blue",
+    marginTop: 8,
+  },
+  adminText: {
+    fontSize: 12,
+    color: "orange",
+    marginTop: 8,
+  },
+  statsRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginTop: 20,
+  },
+  statBox: {
+    backgroundColor: "#f2f2f2",
+    padding: 10,
+    flex: 1,
+    alignItems: "center",
+    marginHorizontal: 4,
   },
 });

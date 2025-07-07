@@ -8,13 +8,14 @@ import {
   Alert,
   TouchableOpacity,
   TextInput,
+  Dimensions,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import {
   collection,
   query,
   where,
-  getDocs,
+  onSnapshot,
   deleteDoc,
   doc,
 } from "firebase/firestore";
@@ -24,46 +25,48 @@ export default function UsersChecklistScreen({ navigation }) {
   const [users, setUsers] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-
-  const fetchUsers = async () => {
-    setLoading(true);
-    try {
-      const q = query(
-        collection(firestore, "users"),
-        where("role", "==", "citizen")
-      );
-      const snapshot = await getDocs(q);
-
-      const list = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-        joinDate: doc.data().createdAt?.toDate() || new Date(),
-      }));
-
-      list.sort((a, b) => b.joinDate - a.joinDate);
-      setUsers(list);
-    } catch (error) {
-      console.error("Error fetching users:", error);
-      Alert.alert("Error", "Failed to load users.");
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  };
+  const [actionLoading, setActionLoading] = useState(false);
 
   useEffect(() => {
-    fetchUsers();
+    const q = query(
+      collection(firestore, "users"),
+      where("role", "==", "citizen")
+    );
+
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        const list = snapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+          joinDate: doc.data().createdAt?.toDate() || new Date(),
+        }));
+
+        list.sort((a, b) => b.joinDate - a.joinDate);
+        setUsers(list);
+        setLoading(false);
+      },
+      (error) => {
+        console.error("Error fetching users:", error);
+        Alert.alert("Error", "Failed to load users.");
+        setLoading(false);
+      }
+    );
+
+    return () => unsubscribe();
   }, []);
 
   const deleteUser = async (userId) => {
+    setActionLoading(true);
     try {
       await deleteDoc(doc(firestore, "users", userId));
-      setUsers((prev) => prev.filter((u) => u.id !== userId));
+      // No need to manually update users — real-time listener handles it
       Alert.alert("Deleted", "User has been deleted.");
     } catch (error) {
       console.error("Error deleting user:", error);
       Alert.alert("Error", "Failed to delete user.");
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -72,15 +75,6 @@ export default function UsersChecklistScreen({ navigation }) {
       user.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       user.email?.toLowerCase().includes(searchQuery.toLowerCase())
   );
-
-  if (loading) {
-    return (
-      <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#4F46E5" />
-        <Text>Loading users...</Text>
-      </View>
-    );
-  }
 
   return (
     <View style={styles.container}>
@@ -109,49 +103,66 @@ export default function UsersChecklistScreen({ navigation }) {
       </View>
 
       {/* User List */}
-      <FlatList
-        data={filteredUsers}
-        keyExtractor={(item) => item.id}
-        refreshing={refreshing}
-        onRefresh={fetchUsers}
-        ListEmptyComponent={
-          <Text style={styles.emptyText}>No users found.</Text>
-        }
-        renderItem={({ item }) => (
-          <View style={styles.card}>
-            <View style={styles.avatar}>
-              <Text style={styles.avatarText}>
-                {(item.name || "U")[0].toUpperCase()}
-              </Text>
+      {loading ? (
+        <View style={styles.centered}>
+          <ActivityIndicator size="large" color="#4F46E5" />
+          <Text>Loading users...</Text>
+        </View>
+      ) : (
+        <FlatList
+          data={filteredUsers}
+          keyExtractor={(item) => item.id}
+          ListEmptyComponent={
+            <Text style={styles.emptyText}>No users found.</Text>
+          }
+          renderItem={({ item }) => (
+            <View style={styles.card}>
+              <View style={styles.avatar}>
+                <Text style={styles.avatarText}>
+                  {(item.name || "U")[0].toUpperCase()}
+                </Text>
+              </View>
+              <View style={styles.info}>
+                <Text style={styles.name}>{item.name || "No Name"}</Text>
+                <Text style={styles.email}>{item.email || "No Email"}</Text>
+                <Text style={styles.date}>
+                  Joined: {item.joinDate.toLocaleDateString()}
+                </Text>
+              </View>
+              <TouchableOpacity
+                onPress={() =>
+                  Alert.alert(
+                    "Delete User",
+                    `Are you sure you want to delete ${item.name}?`,
+                    [
+                      { text: "Cancel" },
+                      { text: "Delete", onPress: () => deleteUser(item.id) },
+                    ]
+                  )
+                }
+                style={styles.deleteButton}
+              >
+                <Ionicons name="trash" size={20} color="#fff" />
+              </TouchableOpacity>
             </View>
-            <View style={styles.info}>
-              <Text style={styles.name}>{item.name || "No Name"}</Text>
-              <Text style={styles.email}>{item.email || "No Email"}</Text>
-              <Text style={styles.date}>
-                Joined: {item.joinDate.toLocaleDateString()}
-              </Text>
-            </View>
-            <TouchableOpacity
-              onPress={() =>
-                Alert.alert(
-                  "Delete User",
-                  `Are you sure you want to delete ${item.name}?`,
-                  [
-                    { text: "Cancel" },
-                    { text: "Delete", onPress: () => deleteUser(item.id) },
-                  ]
-                )
-              }
-              style={styles.deleteButton}
-            >
-              <Ionicons name="trash" size={20} color="#fff" />
-            </TouchableOpacity>
-          </View>
-        )}
-      />
+          )}
+        />
+      )}
+
+      {/* Loader Overlay */}
+      {(actionLoading || loading) && (
+        <View style={styles.overlay}>
+          <ActivityIndicator size="large" color="#fff" />
+          <Text style={styles.overlayText}>
+            {loading ? "Loading..." : "Processing..."}
+          </Text>
+        </View>
+      )}
     </View>
   );
 }
+
+const { width, height } = Dimensions.get("window");
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#f2f2f2", padding: 12 },
@@ -205,5 +216,22 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginTop: 40,
     color: "#555",
+  },
+  overlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    width,
+    height,
+    backgroundColor: "rgba(0,0,0,0.4)",
+    justifyContent: "center",
+    alignItems: "center",
+    zIndex: 999,
+  },
+  overlayText: {
+    color: "#fff",
+    marginTop: 10,
+    fontSize: 16,
+    fontWeight: "500",
   },
 });

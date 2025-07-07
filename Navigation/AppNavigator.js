@@ -33,6 +33,7 @@ import ManageAppointmentsScreen from "../Screens/ManageAppointmentsScreen";
 import PatientDetailsScreen from "../Screens/PatientDetailsScreen";
 import PatientHistory from "../Screens/PatientHistoryScreen";
 import AddPersonScreen from "../Screens/AddPersonScreen";
+import SettingsScreen from "../Screens/SettingsScreen";
 
 const Stack = createNativeStackNavigator();
 
@@ -66,6 +67,7 @@ export default function AppNavigator({ role }) {
       <Stack.Screen name="PatientDetailsScreen" component={PatientDetailsScreen}/>
       <Stack.Screen name="PatientHistory" component={PatientHistory}/>
       <Stack.Screen name="AddPersonScreen" component={AddPersonScreen}/>
+      <Stack.Screen name="SettingsScreen" component={SettingsScreen}/>
     </Stack.Navigator>
   );
 }

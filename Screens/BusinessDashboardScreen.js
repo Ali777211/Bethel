@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   ScrollView,
   StatusBar,
-  Platform,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -36,97 +35,119 @@ export default function BusinessDashboardScreen({ navigation }) {
       title: "Employees",
       description: "Manage your staff",
       icon: "people",
-      onPress: () => navigation.navigate("EmployeesListScreen", { business: businessObj }),
+      color: "#3B82F6",
+      onPress: () =>
+        navigation.navigate("EmployeeManagementScreen", { business: businessObj }),
     },
     {
       title: "Payroll",
       description: "Manage payroll and shifts",
       icon: "calendar",
+      color: "#F59E0B",
       onPress: () => console.log("Payroll pressed"),
     },
     {
       title: "Performance",
       description: "View performance",
       icon: "analytics",
+      color: "#10B981",
       onPress: () => console.log("Performance pressed"),
     },
     {
       title: "Reports",
       description: "Generate reports",
       icon: "document-text",
+      color: "#EF4444",
       onPress: () => console.log("Reports pressed"),
     },
   ];
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#1E40AF" />
+      <StatusBar barStyle="dark-content" backgroundColor="#ccc" />
 
+      {/* Header */}
       <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          <Ionicons name="business" size={24} color="#fff" />
-          <View>
-            <Text style={styles.greeting}>{getGreeting()}</Text>
-            <Text style={styles.businessName}>{businessObj?.name || "Business"}</Text>
-          </View>
-        </View>
         <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={24} color="#fff" />
+          <Ionicons name="arrow-back" size={24} color="#000" />
         </TouchableOpacity>
+        <Text style={styles.headerTitle}>Dashboard</Text>
+        <View style={{ width: 24 }} />
+      </View>
+
+      {/* Greeting */}
+      <View style={styles.greetingWrapper}>
+        <Text style={styles.greetingText}>{getGreeting()}</Text>
+        <Text style={styles.businessNameText}>{businessObj?.name || "Business"}</Text>
       </View>
 
       <ScrollView contentContainerStyle={styles.scroll}>
         {dashboardItems.map((item, index) => (
           <TouchableOpacity
             key={index}
-            style={styles.card}
+            style={[styles.card, { backgroundColor: item.color }]}
             onPress={item.onPress}
           >
-            <Ionicons name={item.icon} size={28} color="#1E40AF" />
+            <Ionicons name={item.icon} size={28} color="#fff" />
             <Text style={styles.cardTitle}>{item.title}</Text>
             <Text style={styles.cardDesc}>{item.description}</Text>
           </TouchableOpacity>
         ))}
-        <View style={{ height: 20 }} />
+        <View style={{ height: 30 }} />
       </ScrollView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F1F5F9" },
+  container: { flex: 1, backgroundColor: "#fff" },
   header: {
-    backgroundColor: "#1E40AF",
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
-    padding: 16,
-    paddingTop: Platform.OS === "android" ? StatusBar.currentHeight : 16,
+    justifyContent: "space-between",
+    padding: 12,
+    backgroundColor: "#ddd",
   },
-  headerLeft: { flexDirection: "row", alignItems: "center", gap: 10 },
-  greeting: { color: "#fff", fontSize: 14 },
-  businessName: { color: "#fff", fontSize: 18, fontWeight: "bold" },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "#000",
+  },
+  greetingWrapper: {
+    alignItems: "center",
+    marginTop: 16,
+    marginBottom: 12,
+  },
+  greetingText: {
+    fontSize: 16,
+    fontWeight: "500",
+    color: "#555",
+  },
+  businessNameText: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "#111",
+    marginTop: 4,
+  },
   scroll: {
-    padding: 16,
+    paddingHorizontal: 16,
   },
   card: {
-    backgroundColor: "#fff",
     padding: 16,
-    borderRadius: 12,
     marginBottom: 12,
     alignItems: "center",
-    elevation: 2,
+    borderRadius: 8,
   },
   cardTitle: {
     fontSize: 16,
-    fontWeight: "600",
-    marginTop: 8,
-    color: "#1E293B",
+    fontWeight: "bold",
+    color: "#fff",
+    marginTop: 6,
   },
   cardDesc: {
     fontSize: 12,
-    color: "#475569",
-    marginTop: 4,
+    color: "#f0f0f0",
+    marginTop: 2,
     textAlign: "center",
   },
 });

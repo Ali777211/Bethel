@@ -44,21 +44,26 @@ export default function CitizenHomeScreen({ navigation }) {
       icon: "car",
       screen: "UserVehiclesListScreen",
     },
+    {
+      title: "Settings",
+      icon: "settings",
+      screen: "SettingsScreen",
+    },
   ];
 
-  const handleLogout = async () => {
-  try {
-    console.log("Hello")
-    await auth.signOut();
+//   const handleLogout = async () => {
+//   try {
+//     console.log("Hello")
+//     await auth.signOut();
 
-    await AsyncStorage.removeItem("userData");
+//     await AsyncStorage.removeItem("userData");
 
-    Updates.reloadAsync();
-  } catch (error) {
-    console.error("Logout error:", error);
-    Alert.alert("Error", "Could not log out. Please try again.");
-  }
-};
+//     Updates.reloadAsync();
+//   } catch (error) {
+//     console.error("Logout error:", error);
+//     Alert.alert("Error", "Could not log out. Please try again.");
+//   }
+// };
 
 
   return (
@@ -67,9 +72,9 @@ export default function CitizenHomeScreen({ navigation }) {
 
       <View style={styles.header}>
         <Text style={styles.headerText}>Welcome, {userName}</Text>
-        <TouchableOpacity onPress={handleLogout}>
+        {/* <TouchableOpacity onPress={handleLogout}>
           <Ionicons name="log-out-outline" size={24} color="#ffffff" />
-        </TouchableOpacity>
+        </TouchableOpacity> */}
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>

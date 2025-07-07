@@ -12,16 +12,23 @@ import {
   RefreshControl,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { collection, onSnapshot, deleteDoc, doc } from "firebase/firestore";
+import {
+  collection,
+  onSnapshot,
+  deleteDoc,
+  doc,
+  where,
+  query,
+  getDocs,
+} from "firebase/firestore";
 import { firestore } from "../Managers/FirebaseManager";
 import { Ionicons } from "@expo/vector-icons";
-import { Swipeable } from "react-native-gesture-handler";
 
 export default function HospitalsListScreen({ navigation }) {
   const [hospitals, setHospitals] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [deletingId, setDeletingId] = useState(null);
+  const [deleting, setDeleting] = useState(false);
   const [user, setUser] = useState(null);
 
   useEffect(() => {
@@ -86,81 +93,65 @@ export default function HospitalsListScreen({ navigation }) {
   };
 
   const handleDelete = async (hospitalId) => {
-    Alert.alert(
-      "Delete Hospital",
-      "Are you sure you want to permanently delete this hospital? This action cannot be undone.",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: async () => {
-            setDeletingId(hospitalId);
-            try {
-              await deleteDoc(doc(firestore, "hospitals", hospitalId));
-              setHospitals((prev) => prev.filter((h) => h.id !== hospitalId));
-              Alert.alert("Success", "Hospital deleted successfully.");
-            } catch (error) {
-              console.error("Delete error:", error);
-              Alert.alert(
-                "Error",
-                "Failed to delete hospital. Please try again."
-              );
-            } finally {
-              setDeletingId(null);
-            }
-          },
-        },
-      ]
-    );
+    setDeleting(true);
+    try {
+      const usersRef = collection(firestore, "users");
+      const adminQuery = query(
+        usersRef,
+        where("role", "==", "hospitalAdmin"),
+        where("hospitalId", "==", hospitalId)
+      );
+      const adminSnapshot = await getDocs(adminQuery);
+      const deletePromises = adminSnapshot.docs.map((docSnap) =>
+        deleteDoc(doc(firestore, "users", docSnap.id))
+      );
+      await Promise.all(deletePromises);
+
+      await deleteDoc(doc(firestore, "hospitals", hospitalId));
+      setHospitals((prev) => prev.filter((h) => h.id !== hospitalId));
+    } catch (error) {
+      console.error("Delete error:", error);
+      Alert.alert(
+        "Error",
+        "Failed to delete hospital or associated admin. Please try again."
+      );
+    } finally {
+      setDeleting(false);
+    }
   };
 
-  const renderRightActions = (item) => (
-    <View style={styles.swipeActionsContainer}>
-      <TouchableOpacity
-        style={styles.deleteButton}
-        onPress={() => handleDelete(item.id)}
-        activeOpacity={0.8}
-      >
-        <Ionicons name="trash" size={20} color="#fff" />
-        <Text style={styles.deleteText}>Delete</Text>
-      </TouchableOpacity>
-    </View>
-  );
-
   const renderHospitalCard = ({ item }) => (
-    <Swipeable
-      renderRightActions={() =>
-        user?.role === "admin" && renderRightActions(item)
+    <TouchableOpacity
+      onPress={() =>
+        navigation.navigate("HospitalDetailScreen", { hospital: item })
       }
+      style={styles.hospitalCard}
+      disabled={deleting}
     >
-      <TouchableOpacity
-        onPress={() =>
-          navigation.navigate("HospitalDetailScreen", { hospital: item })
-        }
-        style={[
-          styles.hospitalCard,
-          deletingId === item.id && styles.cardDeleting,
-        ]}
-        disabled={!!deletingId}
-      >
-        <View style={styles.cardHeader}>
-          <View style={styles.iconContainer}>
-            <Ionicons name="medkit" size={24} color="#2563EB" />
-          </View>
-          <View style={styles.infoContainer}>
-            <Text style={styles.hospitalName} numberOfLines={1}>
-              {item.name}
-            </Text>
-            <Text style={styles.hospitalType}>{item.type}</Text>
-            <Text style={styles.hospitalLocation} numberOfLines={1}>
-              {item.location || "No location"}
-            </Text>
-          </View>
-          <Ionicons name="chevron-forward" size={18} color="#2563EB" />
+      <View style={styles.cardHeader}>
+        <View style={styles.iconContainer}>
+          <Ionicons name="medkit" size={24} color="#2563EB" />
         </View>
-      </TouchableOpacity>
-    </Swipeable>
+        <View style={styles.infoContainer}>
+          <Text style={styles.hospitalName} numberOfLines={1}>
+            {item.name}
+          </Text>
+          <Text style={styles.hospitalType}>{item.type}</Text>
+          <Text style={styles.hospitalLocation} numberOfLines={1}>
+            {item.location || "No location"}
+          </Text>
+        </View>
+        {user?.role === "admin" && (
+          <TouchableOpacity
+            onPress={() => handleDelete(item.id)}
+            style={styles.inlineDeleteButton}
+          >
+            <Ionicons name="trash" size={20} color="#e11d48" />
+          </TouchableOpacity>
+        )}
+        <Ionicons name="chevron-forward" size={18} color="#2563EB" />
+      </View>
+    </TouchableOpacity>
   );
 
   const renderHeader = () => (
@@ -195,7 +186,10 @@ export default function HospitalsListScreen({ navigation }) {
   }
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView
+      style={styles.safeArea}
+      pointerEvents={deleting ? "none" : "auto"}
+    >
       <StatusBar barStyle="dark-content" />
       {renderHeader()}
       {hospitals.length === 0 ? (
@@ -218,6 +212,13 @@ export default function HospitalsListScreen({ navigation }) {
         >
           <Text style={styles.addButtonText}>Add New Hospital</Text>
         </TouchableOpacity>
+      )}
+
+      {deleting && (
+        <View style={styles.overlay}>
+          <ActivityIndicator size="large" color="#2563EB" />
+          <Text style={{ marginTop: 10 }}>Deleting...</Text>
+        </View>
       )}
     </SafeAreaView>
   );
@@ -244,7 +245,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#ddd",
   },
-  cardDeleting: { opacity: 0.5 },
   cardHeader: { flexDirection: "row", alignItems: "center", flex: 1 },
   iconContainer: {
     marginRight: 8,
@@ -255,16 +255,10 @@ const styles = StyleSheet.create({
   hospitalName: { fontSize: 16, fontWeight: "bold", color: "#000" },
   hospitalType: { fontSize: 13, color: "#555" },
   hospitalLocation: { fontSize: 13, color: "#777" },
-  swipeActionsContainer: {
-    justifyContent: "center",
-    alignItems: "flex-end",
-    paddingHorizontal: 10,
+  inlineDeleteButton: {
+    padding: 6,
+    marginLeft: 10,
   },
-  deleteButton: {
-    backgroundColor: "#cc0000",
-    padding: 8,
-  },
-  deleteText: { color: "#fff", fontSize: 12 },
   addButton: {
     backgroundColor: "#2563EB",
     padding: 14,
@@ -293,5 +287,12 @@ const styles = StyleSheet.create({
     color: "#555",
     textAlign: "center",
     marginTop: 6,
+  },
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(0,0,0,0.2)",
+    justifyContent: "center",
+    alignItems: "center",
+    zIndex: 999,
   },
 });

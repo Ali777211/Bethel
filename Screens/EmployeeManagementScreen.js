@@ -5,7 +5,6 @@ import {
   FlatList,
   StyleSheet,
   TouchableOpacity,
-  TextInput,
   SafeAreaView,
   StatusBar,
   Alert,
@@ -24,7 +23,6 @@ import { firestore } from "../Managers/FirebaseManager";
 
 export default function EmployeeManagementScreen({ navigation }) {
   const [employees, setEmployees] = useState([]);
-  const [searchQuery, setSearchQuery] = useState("");
 
   const route = useRoute();
   const business = route?.params?.business;
@@ -68,10 +66,6 @@ export default function EmployeeManagementScreen({ navigation }) {
     );
   };
 
-  const filteredEmployees = employees.filter((emp) =>
-    emp.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
   const renderItem = ({ item }) => (
     <View style={styles.card}>
       <View style={styles.row}>
@@ -109,18 +103,8 @@ export default function EmployeeManagementScreen({ navigation }) {
         <Text style={styles.title}>Employees</Text>
       </View>
 
-      <View style={styles.searchBox}>
-        <Ionicons name="search" size={18} color="#9CA3AF" />
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Search..."
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-        />
-      </View>
-
       <FlatList
-        data={filteredEmployees}
+        data={employees}
         keyExtractor={(item) => item.id}
         renderItem={renderItem}
         ListEmptyComponent={
@@ -131,13 +115,15 @@ export default function EmployeeManagementScreen({ navigation }) {
         contentContainerStyle={{ padding: 16 }}
       />
 
-      <TouchableOpacity
-        style={styles.addButton}
-        onPress={() => navigation.navigate("AddEmployeesScreen", { business })}
-      >
-        <Ionicons name="add" size={20} color="#fff" />
-        <Text style={styles.addText}>Add Employee</Text>
-      </TouchableOpacity>
+      <View style={styles.bottomButtonWrapper}>
+        <TouchableOpacity
+          style={styles.addButton}
+          onPress={() => navigation.navigate("AddEmployeesScreen", { business })}
+        >
+          <Ionicons name="add" size={20} color="#fff" />
+          <Text style={styles.addText}>Add Employee</Text>
+        </TouchableOpacity>
+      </View>
     </SafeAreaView>
   );
 }
@@ -153,17 +139,6 @@ const styles = StyleSheet.create({
     borderColor: "#E5E7EB",
   },
   title: { marginLeft: 12, fontSize: 18, fontWeight: "600", color: "#1F2937" },
-  searchBox: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#fff",
-    margin: 16,
-    paddingHorizontal: 12,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
-  },
-  searchInput: { flex: 1, padding: 8, fontSize: 16 },
   card: {
     backgroundColor: "#fff",
     borderRadius: 8,
@@ -189,18 +164,21 @@ const styles = StyleSheet.create({
   actions: { flexDirection: "row" },
   editButton: { flexDirection: "row", alignItems: "center" },
   editText: { color: "#2563EB", marginLeft: 4 },
+  bottomButtonWrapper: {
+    padding: 16,
+    borderTopWidth: 1,
+    borderColor: "#E5E7EB",
+    backgroundColor: "#fff",
+  },
   addButton: {
-    position: "absolute",
-    bottom: 20,
-    right: 20,
     flexDirection: "row",
     backgroundColor: "#2563EB",
     paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 24,
+    borderRadius: 8,
     alignItems: "center",
+    justifyContent: "center",
   },
-  addText: { color: "#fff", marginLeft: 8, fontWeight: "600" },
+  addText: { color: "#fff", marginLeft: 8, fontWeight: "600", fontSize: 16 },
   empty: { alignItems: "center", marginTop: 40 },
   emptyText: { color: "#6B7280" },
 });

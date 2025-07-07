@@ -1,261 +1,301 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import {
+  View,
   Text,
   FlatList,
-  StyleSheet,
-  ActivityIndicator,
   TouchableOpacity,
-  View,
+  StyleSheet,
   Alert,
+  ActivityIndicator,
+  RefreshControl,
   StatusBar,
+  SafeAreaView,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { firestore } from "../Managers/FirebaseManager";
 import {
   collection,
   query,
   where,
-  onSnapshot,
-  doc,
+  getDocs,
   deleteDoc,
+  doc,
 } from "firebase/firestore";
-import { Swipeable, RectButton } from "react-native-gesture-handler";
+import { firestore } from "../Managers/FirebaseManager";
+import { useFocusEffect } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 
 export default function BusinessesListScreen({ navigation }) {
-  const [currentUserId, setCurrentUserId] = useState(null);
-  const [userRole, setUserRole] = useState(null);
+  const [user, setUser] = useState(null);
   const [businesses, setBusinesses] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
 
-  const loadUser = async () => {
-    try {
-      const userData = await AsyncStorage.getItem("userData");
-      if (userData) {
-        const parsed = JSON.parse(userData);
-        setCurrentUserId(parsed?.uid);
-        setUserRole(parsed?.role);
-      } else {
-        Alert.alert("Error", "User not found. Please log in again.");
-      }
-    } catch (err) {
-      console.error("Error loading user:", err);
-      Alert.alert("Error", "Could not load user data.");
-    }
-  };
-
   useEffect(() => {
+    const loadUser = async () => {
+      try {
+        const userData = await AsyncStorage.getItem("userData");
+        if (userData) {
+          setUser(JSON.parse(userData));
+        }
+      } catch (error) {
+        console.log("Failed to load user", error);
+      }
+    };
     loadUser();
   }, []);
 
   useEffect(() => {
-    if (!currentUserId) return;
+    if (user) {
+      fetchBusinesses();
+    }
+  }, [user]);
 
-    setLoading(true);
-
-    const q =
-      userRole === "admin"
-        ? query(collection(firestore, "businesses"))
-        : query(
-            collection(firestore, "businesses"),
-            where("ownerId", "==", currentUserId)
-          );
-
-    const unsubscribe = onSnapshot(
-      q,
-      (snapshot) => {
-        const data = snapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        }));
-        setBusinesses(data);
-        setLoading(false);
-      },
-      (err) => {
-        console.error("Fetch error:", err);
-        Alert.alert("Error", "Could not load businesses.");
-        setLoading(false);
+  useFocusEffect(
+    useCallback(() => {
+      if (user) {
+        fetchBusinesses();
       }
-    );
+    }, [user])
+  );
 
-    return () => unsubscribe();
-  }, [currentUserId, userRole]);
-
-  const deleteBusiness = async (id) => {
+  const fetchBusinesses = async () => {
+    setLoading(true);
     try {
-      setDeletingId(id);
-      await deleteDoc(doc(firestore, "businesses", id));
-    } catch (err) {
-      console.error("Delete error:", err);
-      Alert.alert("Error", "Could not delete business.");
+      let q;
+      if (user?.role === "admin" || user?.role === "owner") {
+        q = query(collection(firestore, "businesses"));
+      } else {
+        q = query(
+          collection(firestore, "businesses"),
+          where("ownerId", "==", user.uid)
+        );
+      }
+
+      const snapshot = await getDocs(q);
+      const data = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+      setBusinesses(data);
+    } catch (error) {
+      console.log("Error getting businesses:", error);
+      Alert.alert("Error", "Failed to load businesses");
     } finally {
-      setDeletingId(null);
+      setLoading(false);
     }
   };
 
-  const renderRightActions = (item) => (
-    <RectButton
-      style={styles.deleteButton}
-      onPress={() =>
-        Alert.alert(
-          "Delete Business",
-          `Delete "${item.name}"?`,
-          [
-            { text: "Cancel", style: "cancel" },
-            { text: "Delete", style: "destructive", onPress: () => deleteBusiness(item.id) },
-          ]
-        )
-      }
-    >
-      {deletingId === item.id ? (
-        <ActivityIndicator size="small" color="#fff" />
-      ) : (
-        <Ionicons name="trash-outline" size={20} color="#fff" />
-      )}
-    </RectButton>
-  );
+  const deleteBusiness = async (id) => {
+    Alert.alert("Delete", "Are you sure you want to delete this business?", [
+      { text: "Cancel" },
+      {
+        text: "Delete",
+        onPress: async () => {
+          setDeletingId(id);
+          setLoading(true);
+          try {
+            await deleteDoc(doc(firestore, "businesses", id));
+            setBusinesses((prev) => prev.filter((b) => b.id !== id));
+          } catch (err) {
+            Alert.alert("Error", "Could not delete business");
+          } finally {
+            setDeletingId(null);
+            setLoading(false);
+          }
+        },
+      },
+    ]);
+  };
 
-  const renderItem = ({ item }) => (
-    <Swipeable renderRightActions={() => renderRightActions(item)}>
-      <TouchableOpacity
-        style={styles.card}
-        onPress={() =>
-          navigation.navigate("BusinessRegistrationScreen", { business: item })
-        }
-      >
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await fetchBusinesses();
+    setRefreshing(false);
+  };
+
+  const renderItem = ({ item }) => {
+    const isOwner = user?.uid === item.ownerId;
+    const isAdmin = user?.role === "admin";
+
+    return (
+      <View style={styles.card}>
         <View style={styles.cardContent}>
-          <Ionicons
-            name="business-outline"
-            size={20}
-            color="#000"
-            style={{ marginRight: 8 }}
-          />
-          <View>
-            <Text style={styles.cardTitle}>{item.name}</Text>
-            <Text style={styles.cardSubtitle}>{item.type || "Business"}</Text>
-          </View>
-        </View>
-      </TouchableOpacity>
-    </Swipeable>
-  );
+          <Text style={styles.name}>{item.name}</Text>
+          <Text style={styles.info}>{item.type}</Text>
+          <Text style={styles.info}>{item.location}</Text>
 
-  let screenTitle = userRole === "admin" ? "Businesses" : "My Businesses";
+          {/* Edit Button - Owner only */}
+          {isOwner && (
+            <TouchableOpacity
+              style={styles.manageBtn}
+              onPress={() =>
+                navigation.navigate("BusinessRegistrationScreen", {
+                  business: item,
+                })
+              }
+            >
+              <Text style={styles.manageText}>Edit</Text>
+            </TouchableOpacity>
+          )}
+
+          {/* Manage (Dashboard) - Owner & Admin */}
+          {(isOwner || isAdmin) && (
+            <TouchableOpacity
+              style={[styles.manageBtn, { backgroundColor: "#10B981" }]}
+              onPress={() =>
+                navigation.navigate("BusinessDashboardScreen", {
+                  business: item,
+                })
+              }
+            >
+              <Text style={styles.manageText}>Manage</Text>
+            </TouchableOpacity>
+          )}
+
+          {/* Delete Button - Owner & Admin */}
+          {(isOwner || isAdmin) && (
+            <TouchableOpacity
+              style={styles.deleteBtn}
+              onPress={() => deleteBusiness(item.id)}
+            >
+              {deletingId === item.id ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.deleteText}>Delete</Text>
+              )}
+            </TouchableOpacity>
+          )}
+        </View>
+      </View>
+    );
+  };
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#fff" />
+      <StatusBar barStyle="dark-content" />
 
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={24} color="#000" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>{screenTitle}</Text>
+        <Text style={styles.headerTitle}>Businesses</Text>
         <View style={{ width: 24 }} />
       </View>
 
-      {loading ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#000" />
-          <Text>Loading...</Text>
-        </View>
-      ) : (
-        <>
-          <FlatList
-            data={businesses}
-            keyExtractor={(item) => item.id}
-            renderItem={renderItem}
-            contentContainerStyle={{ paddingBottom: 80 }} // reserve space for button
-            ListEmptyComponent={
-              <View style={styles.emptyContainer}>
-                <Text>No businesses found.</Text>
-              </View>
-            }
-          />
+      <FlatList
+        data={businesses}
+        keyExtractor={(item) => item.id}
+        renderItem={renderItem}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
+        contentContainerStyle={{ paddingBottom: 100 }}
+      />
 
-          {/* Add New Business Button at Bottom */}
-          <View style={styles.bottomButtonContainer}>
-            <TouchableOpacity
-              style={styles.addButton}
-              onPress={() => navigation.navigate("BusinessRegistrationScreen")}
-            >
-              <Ionicons name="add" size={20} color="#fff" />
-              <Text style={styles.addButtonText}>Add New Business</Text>
-            </TouchableOpacity>
-          </View>
-        </>
+      {user?.role === "citizen" && (
+        <View style={styles.addNewWrapper}>
+          <TouchableOpacity
+            style={styles.addNewButton}
+            onPress={() => navigation.navigate("BusinessRegistrationScreen")}
+          >
+            <Text style={styles.addNewText}>Add New Business</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {loading && (
+        <View style={styles.loaderOverlay}>
+          <ActivityIndicator size="large" color="#2563EB" />
+        </View>
       )}
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#fff" },
+  container: {
+    flex: 1,
+    paddingHorizontal: 16,
+    backgroundColor: "#fff",
+  },
   header: {
     flexDirection: "row",
-    alignItems: "center",
-    padding: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: "#ddd",
     justifyContent: "space-between",
+    alignItems: "center",
+    paddingVertical: 12,
   },
   headerTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: "bold",
-    color: "#000",
+    textAlign: "center",
   },
   card: {
-    backgroundColor: "#eee",
-    margin: 10,
-    padding: 10,
-    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: "#ddd",
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 10,
+    backgroundColor: "#f9f9f9",
   },
   cardContent: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: "column",
   },
-  cardTitle: {
-    fontSize: 16,
+  name: {
+    fontSize: 18,
     fontWeight: "bold",
   },
-  cardSubtitle: {
+  info: {
     fontSize: 14,
+    color: "#333",
   },
-  deleteButton: {
-    backgroundColor: "red",
-    justifyContent: "center",
-    alignItems: "center",
-    width: 70,
-  },
-  emptyContainer: {
-    alignItems: "center",
-    marginTop: 20,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: "center",
+  manageBtn: {
+    marginTop: 8,
+    backgroundColor: "#2563EB",
+    padding: 8,
+    borderRadius: 6,
     alignItems: "center",
   },
-  bottomButtonContainer: {
-    position: "absolute",
-    bottom: 20,
-    left: 20,
-    right: 20,
+  manageText: {
+    color: "#fff",
+    fontWeight: "600",
   },
-  addButton: {
-    flexDirection: "row",
-    backgroundColor: "#007BFF",
+  deleteBtn: {
+    marginTop: 6,
+    backgroundColor: "#DC2626",
+    padding: 8,
+    borderRadius: 6,
+    alignItems: "center",
+  },
+  deleteText: {
+    color: "#fff",
+    fontWeight: "600",
+  },
+  addNewWrapper: {
     padding: 16,
+    borderTopWidth: 1,
+    borderColor: "#ddd",
+    backgroundColor: "#fff",
+  },
+  addNewButton: {
+    backgroundColor: "#2563EB",
+    paddingVertical: 12,
     borderRadius: 8,
     alignItems: "center",
-    justifyContent: "center",
   },
-  addButtonText: {
-    color: "#fff",
-    marginLeft: 8,
-    fontWeight: "600",
+  addNewText: {
+    color: "white",
     fontSize: 16,
+    fontWeight: "600",
+  },
+  loaderOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(255,255,255,0.7)",
+    justifyContent: "center",
+    alignItems: "center",
+    zIndex: 10,
+    elevation: 10,
   },
 });
