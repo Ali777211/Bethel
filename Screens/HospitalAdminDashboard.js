@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useContext } from "react";
 import {
   View,
   Text,
@@ -23,11 +23,11 @@ import {
   onSnapshot,
 } from "firebase/firestore";
 import { auth, firestore } from "../Managers/FirebaseManager";
-import * as Updates from "expo-updates";
-
+import { AuthContext } from "../Managers/AuthContext";
 
 const HospitalAdminDashboard = () => {
   const navigation = useNavigation();
+  const { logout } = useContext(AuthContext);
 
   const [userData, setUserData] = useState(null);
   const [hospitalName, setHospitalName] = useState("Hospital");
@@ -45,7 +45,10 @@ const HospitalAdminDashboard = () => {
           if (parsed?.role === "hospitalAdmin") {
             setUserData(parsed);
           } else {
-            Alert.alert("Access Denied", "You are not authorized to access this dashboard.");
+            Alert.alert(
+              "Access Denied",
+              "You are not authorized to access this dashboard."
+            );
             navigation.goBack();
           }
         } else {
@@ -68,13 +71,14 @@ const HospitalAdminDashboard = () => {
     loadUserData();
   }, []);
 
-  // Once we have userData, fetch hospital name and subscribe to counts
   useEffect(() => {
     if (!userData?.hospitalId) return;
 
     const fetchHospitalName = async () => {
       try {
-        const hospitalDoc = await getDoc(doc(firestore, "hospitals", userData.hospitalId));
+        const hospitalDoc = await getDoc(
+          doc(firestore, "hospitals", userData.hospitalId)
+        );
         if (hospitalDoc.exists()) {
           setHospitalName(hospitalDoc.data().name || "Hospital");
         }
@@ -111,12 +115,10 @@ const HospitalAdminDashboard = () => {
     };
   }, [userData]);
 
-  const logout = async () => {
+  const handleLogout = async () => {
     try {
       await auth.signOut();
-      await AsyncStorage.removeItem("userData");
-
-    Updates.reloadAsync();
+      await logout();
     } catch (error) {
       console.error("Logout error:", error);
     }
@@ -135,19 +137,22 @@ const HospitalAdminDashboard = () => {
       title: "Manage Doctors",
       icon: "medkit-outline",
       count: doctorsCount,
-      onPress: () => navigation.navigate("GenericListScreen", { entityType: "Doctors" }),
+      onPress: () =>
+        navigation.navigate("GenericListScreen", { entityType: "Doctors" }),
     },
     {
       title: "Manage Staff",
       icon: "people-outline",
       count: staffCount,
-      onPress: () => navigation.navigate("GenericListScreen", { entityType: "Staff" }),
+      onPress: () =>
+        navigation.navigate("GenericListScreen", { entityType: "Staff" }),
     },
     {
       title: "View Patients",
       icon: "person-outline",
       count: patientsCount,
-      onPress: () => navigation.navigate("GenericListScreen", { entityType: "Patients" }),
+      onPress: () =>
+        navigation.navigate("GenericListScreen", { entityType: "Patients" }),
     },
   ];
 
@@ -159,7 +164,7 @@ const HospitalAdminDashboard = () => {
           <Text style={styles.welcome}>Hi, {userData.name || "Admin"}</Text>
           <Text style={styles.hospital}>{hospitalName}</Text>
         </View>
-        <TouchableOpacity onPress={logout} style={styles.logoutBtn}>
+        <TouchableOpacity onPress={handleLogout} style={styles.logoutBtn}>
           <Ionicons name="log-out-outline" size={20} color="#1e40af" />
           <Text style={styles.logoutText}>Logout</Text>
         </TouchableOpacity>

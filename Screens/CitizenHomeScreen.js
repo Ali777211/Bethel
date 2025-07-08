@@ -10,9 +10,6 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { auth } from "../Managers/FirebaseManager";
-import * as Updates from "expo-updates";
-
 
 export default function CitizenHomeScreen({ navigation }) {
   const [userName, setUserName] = useState("User");
@@ -51,30 +48,12 @@ export default function CitizenHomeScreen({ navigation }) {
     },
   ];
 
-//   const handleLogout = async () => {
-//   try {
-//     console.log("Hello")
-//     await auth.signOut();
-
-//     await AsyncStorage.removeItem("userData");
-
-//     Updates.reloadAsync();
-//   } catch (error) {
-//     console.error("Logout error:", error);
-//     Alert.alert("Error", "Could not log out. Please try again.");
-//   }
-// };
-
-
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#2563EB" />
 
       <View style={styles.header}>
         <Text style={styles.headerText}>Welcome, {userName}</Text>
-        {/* <TouchableOpacity onPress={handleLogout}>
-          <Ionicons name="log-out-outline" size={24} color="#ffffff" />
-        </TouchableOpacity> */}
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
@@ -98,14 +77,14 @@ export default function CitizenHomeScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F3F4F6", 
+    backgroundColor: "#F3F4F6",
   },
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     padding: 16,
-    backgroundColor: "#2563EB", 
+    backgroundColor: "#2563EB",
   },
   headerText: {
     fontSize: 18,

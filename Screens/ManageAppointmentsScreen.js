@@ -22,7 +22,7 @@ import {
 import { getAuth } from "firebase/auth";
 import { Ionicons } from "@expo/vector-icons";
 
-export default function ManageAppointmentsScreen() {
+export default function ManageAppointmentsScreen({ navigation }) {
   const [appointments, setAppointments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [canceling, setCanceling] = useState(false);
@@ -102,7 +102,13 @@ export default function ManageAppointmentsScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <Text style={styles.heading}>My Appointments</Text>
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => navigation.goBack()}>
+          <Ionicons name="arrow-back" size={24} color="#000" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>My Appointments</Text>
+        <View style={{ width: 24 }} />
+      </View>
 
       {loading ? (
         <ActivityIndicator size="large" color="#2563EB" />
@@ -111,7 +117,7 @@ export default function ManageAppointmentsScreen() {
           data={appointments}
           keyExtractor={(item) => item.id}
           renderItem={renderItem}
-          contentContainerStyle={{ paddingBottom: 60 }}
+          contentContainerStyle={{ paddingBottom: 60, padding: 16 }}
           ListEmptyComponent={
             <Text style={styles.emptyText}>No appointments found.</Text>
           }
@@ -132,14 +138,20 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: "#F3F4F6",
-    padding: 16,
   },
-  heading: {
-    fontSize: 20,
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    padding: 16,
+    backgroundColor: "#fff",
+    borderBottomWidth: 1,
+    borderColor: "#E5E7EB",
+  },
+  headerTitle: {
+    fontSize: 18,
     fontWeight: "700",
     color: "#1E293B",
-    marginBottom: 12,
-    textAlign: "center",
   },
   card: {
     backgroundColor: "#FFF",

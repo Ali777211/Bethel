@@ -60,7 +60,6 @@ export default function UsersChecklistScreen({ navigation }) {
     setActionLoading(true);
     try {
       await deleteDoc(doc(firestore, "users", userId));
-      // No need to manually update users — real-time listener handles it
       Alert.alert("Deleted", "User has been deleted.");
     } catch (error) {
       console.error("Error deleting user:", error);
@@ -78,7 +77,6 @@ export default function UsersChecklistScreen({ navigation }) {
 
   return (
     <View style={styles.container}>
-      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={24} color="#000" />
@@ -86,7 +84,6 @@ export default function UsersChecklistScreen({ navigation }) {
         <Text style={styles.title}>Citizen Users</Text>
       </View>
 
-      {/* Search */}
       <View style={styles.searchBox}>
         <Ionicons name="search" size={18} color="#555" />
         <TextInput
@@ -102,7 +99,6 @@ export default function UsersChecklistScreen({ navigation }) {
         )}
       </View>
 
-      {/* User List */}
       {loading ? (
         <View style={styles.centered}>
           <ActivityIndicator size="large" color="#4F46E5" />
@@ -149,7 +145,6 @@ export default function UsersChecklistScreen({ navigation }) {
         />
       )}
 
-      {/* Loader Overlay */}
       {(actionLoading || loading) && (
         <View style={styles.overlay}>
           <ActivityIndicator size="large" color="#fff" />

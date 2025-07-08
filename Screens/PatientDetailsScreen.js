@@ -45,10 +45,7 @@ export default function PatientDetailsScreen({ route, navigation }) {
 
   const renderTabButton = (id, title, icon) => (
     <TouchableOpacity
-      style={[
-        styles.tabButton,
-        activeTab === id && styles.tabButtonActive,
-      ]}
+      style={[styles.tabButton, activeTab === id && styles.tabButtonActive]}
       onPress={() => setActiveTab(id)}
     >
       <Ionicons
@@ -83,18 +80,12 @@ export default function PatientDetailsScreen({ route, navigation }) {
       <Text style={styles.sectionTitle}>Contact</Text>
       <View style={styles.card}>
         <TouchableOpacity onPress={() => handleCall(patient.phone)}>
-          <Text style={styles.contact}>
-            📞 {patient.phone || "No phone"}
-          </Text>
+          <Text style={styles.contact}>📞 {patient.phone || "No phone"}</Text>
         </TouchableOpacity>
         <TouchableOpacity onPress={() => handleEmail(patient.email)}>
-          <Text style={styles.contact}>
-            ✉️ {patient.email || "No email"}
-          </Text>
+          <Text style={styles.contact}>✉️ {patient.email || "No email"}</Text>
         </TouchableOpacity>
-        <Text style={styles.contact}>
-          📍 {patient.address || "No address"}
-        </Text>
+        <Text style={styles.contact}>📍 {patient.address || "No address"}</Text>
         <TouchableOpacity onPress={() => handleCall(patient.emergencyContact)}>
           <Text style={styles.contact}>
             🚨 {patient.emergencyContact || "No emergency contact"}
@@ -154,9 +145,7 @@ export default function PatientDetailsScreen({ route, navigation }) {
           {renderTabButton("medical", "Medical", "medkit-outline")}
         </View>
 
-        {activeTab === "personal"
-          ? renderPersonalInfo()
-          : renderMedicalInfo()}
+        {activeTab === "personal" ? renderPersonalInfo() : renderMedicalInfo()}
       </ScrollView>
     </SafeAreaView>
   );

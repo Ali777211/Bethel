@@ -20,7 +20,6 @@ export default function HospitalDetailScreen({ route, navigation }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Fetch user from AsyncStorage
     const fetchUser = async () => {
       try {
         const jsonValue = await AsyncStorage.getItem("userData");
@@ -36,7 +35,10 @@ export default function HospitalDetailScreen({ route, navigation }) {
 
   useEffect(() => {
     setLoading(true);
-    const q = query(collection(firestore, "doctors"), where("hospitalId", "==", hospital.id));
+    const q = query(
+      collection(firestore, "doctors"),
+      where("hospitalId", "==", hospital.id)
+    );
     const unsubscribe = onSnapshot(
       q,
       (querySnapshot) => {
@@ -65,7 +67,6 @@ export default function HospitalDetailScreen({ route, navigation }) {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={24} color="black" />
@@ -74,16 +75,16 @@ export default function HospitalDetailScreen({ route, navigation }) {
       </View>
 
       <ScrollView style={{ padding: 10 }}>
-        {/* Hospital Info */}
         <View style={styles.card}>
           <Text style={styles.hospitalName}>{hospital.name}</Text>
           <Text style={styles.metaText}>Type: {hospital.type}</Text>
           <Text style={styles.metaText}>Location: {hospital.location}</Text>
         </View>
 
-        {/* Doctors Section */}
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Available Doctors ({doctors.length})</Text>
+          <Text style={styles.sectionTitle}>
+            Available Doctors ({doctors.length})
+          </Text>
         </View>
 
         {loading ? (
@@ -106,7 +107,11 @@ export default function HospitalDetailScreen({ route, navigation }) {
               activeOpacity={0.8}
             >
               <View style={styles.doctorRow}>
-                <Ionicons name="person-circle-outline" size={40} color="#4B5563" />
+                <Ionicons
+                  name="person-circle-outline"
+                  size={40}
+                  color="#4B5563"
+                />
                 <View style={{ marginLeft: 10 }}>
                   <Text style={styles.doctorName}>{doctor.name}</Text>
                   <Text style={styles.doctorSpeciality}>{doctor.role}</Text>
@@ -117,9 +122,7 @@ export default function HospitalDetailScreen({ route, navigation }) {
               </View>
               {!isAdmin ? (
                 <Text style={styles.hint}>Tap to book appointment</Text>
-              ) : (
-                null
-              )}
+              ) : null}
             </TouchableOpacity>
           ))
         )}

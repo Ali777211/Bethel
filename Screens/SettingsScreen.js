@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useContext } from "react";
 import {
   View,
   Text,
@@ -8,15 +8,18 @@ import {
   Image,
   Alert,
   SafeAreaView,
+  StatusBar,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { auth } from "../Managers/FirebaseManager";
 import { Ionicons } from "@expo/vector-icons";
-import * as Updates from "expo-updates";
+import { AuthContext } from "../Managers/AuthContext";
 
 export default function SettingsScreen({ navigation }) {
   const [userData, setUserData] = useState(null);
   const [role, setRole] = useState(null);
+
+  const { logout } = useContext(AuthContext);
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -37,9 +40,7 @@ export default function SettingsScreen({ navigation }) {
         onPress: async () => {
           try {
             await auth.signOut();
-            await AsyncStorage.removeItem("userData");
-            await AsyncStorage.clear();
-            Updates.reloadAsync();
+            await logout();
           } catch (error) {
             Alert.alert("Error", error.message);
           }
@@ -50,9 +51,17 @@ export default function SettingsScreen({ navigation }) {
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={{ padding: 16 }}>
-        <Text style={styles.header}>Settings</Text>
+      <StatusBar barStyle="dark-content" backgroundColor="#fff" />
 
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => navigation.goBack()}>
+          <Ionicons name="arrow-back" size={24} color="#000" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Settings</Text>
+        <View style={{ width: 24 }} />
+      </View>
+
+      <ScrollView contentContainerStyle={{ padding: 16 }}>
         {userData && (
           <View style={styles.profileContainer}>
             <Image
@@ -78,7 +87,9 @@ export default function SettingsScreen({ navigation }) {
         <TouchableOpacity
           style={styles.button}
           onPress={() =>
-            navigation.navigate("BusinessesListScreen", { showManageButton: true })
+            navigation.navigate("BusinessesListScreen", {
+              showManageButton: true,
+            })
           }
         >
           <Text style={styles.buttonText}>My Businesses</Text>
@@ -91,9 +102,14 @@ export default function SettingsScreen({ navigation }) {
           <Text style={styles.buttonText}>My Vehicles</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={[styles.button, styles.logout]} onPress={handleLogout}>
-          <Ionicons name="log-out" size={18} color="#fff" />
-          <Text style={[styles.buttonText, { color: "#fff", marginLeft: 8 }]}>Logout</Text>
+        <TouchableOpacity
+          style={[styles.button, styles.logout]}
+          onPress={handleLogout}
+        >
+          <Ionicons name="log-out-outline" size={18} color="#fff" />
+          <Text style={[styles.buttonText, { color: "#fff", marginLeft: 8 }]}>
+            Logout
+          </Text>
         </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
@@ -106,10 +122,18 @@ const styles = StyleSheet.create({
     backgroundColor: "#F5F5F5",
   },
   header: {
-    fontSize: 24,
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 16,
+    backgroundColor: "#fff",
+    borderBottomWidth: 1,
+    borderColor: "#ddd",
+    justifyContent: "space-between",
+  },
+  headerTitle: {
+    fontSize: 18,
     fontWeight: "bold",
-    marginBottom: 16,
-    textAlign: "center",
+    color: "#000",
   },
   profileContainer: {
     alignItems: "center",
@@ -129,11 +153,6 @@ const styles = StyleSheet.create({
   email: {
     fontSize: 14,
     color: "#555",
-  },
-  role: {
-    fontSize: 14,
-    color: "#888",
-    marginTop: 4,
   },
   button: {
     backgroundColor: "#E0E0E0",

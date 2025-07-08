@@ -112,17 +112,12 @@ export default function AddEmployeeScreen({ navigation, route }) {
     <View style={styles.inputContainer}>
       <Text style={styles.inputLabel}>{label}</Text>
       <TextInput
-        style={[
-          styles.input,
-          errors[field] ? styles.inputError : undefined,
-        ]}
+        style={[styles.input, errors[field] ? styles.inputError : undefined]}
         value={formData[field]}
         onChangeText={(text) => updateFormData(field, text)}
         {...options}
       />
-      {errors[field] && (
-        <Text style={styles.errorText}>{errors[field]}</Text>
-      )}
+      {errors[field] && <Text style={styles.errorText}>{errors[field]}</Text>}
     </View>
   );
 

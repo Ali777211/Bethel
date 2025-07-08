@@ -1,19 +1,6 @@
 import React from "react";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
-
-// Common Screens
 import HomeScreen from "../Screens/CitizenHomeScreen";
-// import SettingsScreen from "../Screens/Settings/SettingsScreen";
-
-// // Admin Screens
-// import AdminHomeScreen from "../Screens/Admin/AdminHomeScreen";
-// import UsersChecklistScreen from "../Screens/Admin/UsersChecklistScreen";
-
-// // Hospital Admin Screens
-// import HospitalAdminDashboard from "../Screens/HospitalAdmin/HospitalAdminDashboard";
-// import ManageAppointmentsScreen from "../Screens/Appointments/ManageAppointmentsScreen";
-
-// // Example Business Screens
 import BusinessesListScreen from "../Screens/BusinessListScreen";
 import HospitalsListScreen from "../Screens/HospitalsListScreens";
 import UserVehiclesListScreen from "../Screens/UserVehiclesListScreen";
@@ -49,25 +36,58 @@ export default function AppNavigator({ role }) {
     >
       <Stack.Screen name="HomeScreen" component={HomeScreen} />
       <Stack.Screen name="AdminHomeScreen" component={AdminHomeScreen} />
-      <Stack.Screen name="BusinessesListScreen" component={BusinessesListScreen} />
-      <Stack.Screen name="HospitalsListScreen" component={HospitalsListScreen}/>
-      <Stack.Screen name="UserVehiclesListScreen" component={UserVehiclesListScreen}/>
-      <Stack.Screen name="UsersChecklistScreen" component={UsersChecklistScreen}/>
-      <Stack.Screen name="AddEmployeesScreen" component={AddEmployeeScreen}/>
-      <Stack.Screen name="AddHospitalScreen" component={AddHospitalScreen}/>
+      <Stack.Screen
+        name="BusinessesListScreen"
+        component={BusinessesListScreen}
+      />
+      <Stack.Screen
+        name="HospitalsListScreen"
+        component={HospitalsListScreen}
+      />
+      <Stack.Screen
+        name="UserVehiclesListScreen"
+        component={UserVehiclesListScreen}
+      />
+      <Stack.Screen
+        name="UsersChecklistScreen"
+        component={UsersChecklistScreen}
+      />
+      <Stack.Screen name="AddEmployeesScreen" component={AddEmployeeScreen} />
+      <Stack.Screen name="AddHospitalScreen" component={AddHospitalScreen} />
       <Stack.Screen name="AddVehicleScreen" component={AddVehicleScreen} />
-      <Stack.Screen name="AppointmentScreen" component={AppointmentScreen}/>
-      <Stack.Screen name="BusinessDashboardScreen" component={BusinessDashboardScreen}/>
-      <Stack.Screen name="BusinessRegistrationScreen" component={BusinessRegistrationScreen}/>
-      <Stack.Screen name="EmployeeManagementScreen" component={EmployeeManagementScreen}/>
-      <Stack.Screen name="GenericListScreen" component={GenericListScreen}/>
-      <Stack.Screen name="HospitalAdminDashboard" component={HospitalAdminDashboard}/>
-      <Stack.Screen name="HospitalDetailScreen" component={HospitalDetailScreen}/>
-      <Stack.Screen name="ManageAppointmentsScreen" component={ManageAppointmentsScreen}/>
-      <Stack.Screen name="PatientDetailsScreen" component={PatientDetailsScreen}/>
-      <Stack.Screen name="PatientHistory" component={PatientHistory}/>
-      <Stack.Screen name="AddPersonScreen" component={AddPersonScreen}/>
-      <Stack.Screen name="SettingsScreen" component={SettingsScreen}/>
+      <Stack.Screen name="AppointmentScreen" component={AppointmentScreen} />
+      <Stack.Screen
+        name="BusinessDashboardScreen"
+        component={BusinessDashboardScreen}
+      />
+      <Stack.Screen
+        name="BusinessRegistrationScreen"
+        component={BusinessRegistrationScreen}
+      />
+      <Stack.Screen
+        name="EmployeeManagementScreen"
+        component={EmployeeManagementScreen}
+      />
+      <Stack.Screen name="GenericListScreen" component={GenericListScreen} />
+      <Stack.Screen
+        name="HospitalAdminDashboard"
+        component={HospitalAdminDashboard}
+      />
+      <Stack.Screen
+        name="HospitalDetailScreen"
+        component={HospitalDetailScreen}
+      />
+      <Stack.Screen
+        name="ManageAppointmentsScreen"
+        component={ManageAppointmentsScreen}
+      />
+      <Stack.Screen
+        name="PatientDetailsScreen"
+        component={PatientDetailsScreen}
+      />
+      <Stack.Screen name="PatientHistory" component={PatientHistory} />
+      <Stack.Screen name="AddPersonScreen" component={AddPersonScreen} />
+      <Stack.Screen name="SettingsScreen" component={SettingsScreen} />
     </Stack.Navigator>
   );
 }

@@ -37,7 +37,9 @@ export default function BusinessDashboardScreen({ navigation }) {
       icon: "people",
       color: "#3B82F6",
       onPress: () =>
-        navigation.navigate("EmployeeManagementScreen", { business: businessObj }),
+        navigation.navigate("EmployeeManagementScreen", {
+          business: businessObj,
+        }),
     },
     {
       title: "Payroll",
@@ -66,7 +68,6 @@ export default function BusinessDashboardScreen({ navigation }) {
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#ccc" />
 
-      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={24} color="#000" />
@@ -75,10 +76,11 @@ export default function BusinessDashboardScreen({ navigation }) {
         <View style={{ width: 24 }} />
       </View>
 
-      {/* Greeting */}
       <View style={styles.greetingWrapper}>
         <Text style={styles.greetingText}>{getGreeting()}</Text>
-        <Text style={styles.businessNameText}>{businessObj?.name || "Business"}</Text>
+        <Text style={styles.businessNameText}>
+          {businessObj?.name || "Business"}
+        </Text>
       </View>
 
       <ScrollView contentContainerStyle={styles.scroll}>

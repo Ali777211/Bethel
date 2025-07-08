@@ -45,20 +45,16 @@ const PatientHistory = () => {
   }, [patient.id]);
 
   const handleCancelRecord = (recordId) => {
-    Alert.alert(
-      "Cancel Appointment",
-      "Are you sure?",
-      [
-        { text: "No" },
-        {
-          text: "Yes",
-          onPress: async () => {
-            const ref = doc(firestore, "appointments", recordId);
-            await updateDoc(ref, { status: "cancelled" });
-          },
+    Alert.alert("Cancel Appointment", "Are you sure?", [
+      { text: "No" },
+      {
+        text: "Yes",
+        onPress: async () => {
+          const ref = doc(firestore, "appointments", recordId);
+          await updateDoc(ref, { status: "cancelled" });
         },
-      ]
-    );
+      },
+    ]);
   };
 
   const handleMarkAsCompleted = async (recordId) => {
@@ -81,7 +77,9 @@ const PatientHistory = () => {
         <Text style={styles.recordDate}>
           {date} • {time}
         </Text>
-        <Text style={styles.recordText}>Doctor: {item.doctorName || "N/A"}</Text>
+        <Text style={styles.recordText}>
+          Doctor: {item.doctorName || "N/A"}
+        </Text>
         <Text style={styles.recordText}>Notes: {item.notes || "No notes"}</Text>
         <Text style={styles.recordText}>
           Status:{" "}
@@ -96,11 +94,7 @@ const PatientHistory = () => {
             style={[styles.actionButton, { backgroundColor: "#D4EDDA" }]}
             onPress={() => handleMarkAsCompleted(item.id)}
           >
-            <Ionicons
-              name="checkmark-done-outline"
-              size={20}
-              color="#28A745"
-            />
+            <Ionicons name="checkmark-done-outline" size={20} color="#28A745" />
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.actionButton, { backgroundColor: "#FFEBEB" }]}
@@ -121,7 +115,9 @@ const PatientHistory = () => {
           <Text style={styles.patientInfo}>
             {patient.age} years • {patient.gender}
           </Text>
-          <Text style={styles.patientInfo}>Blood Type: {patient.bloodType}</Text>
+          <Text style={styles.patientInfo}>
+            Blood Type: {patient.bloodType}
+          </Text>
           <Text style={styles.patientInfo}>Phone: {patient.phone}</Text>
           <Text style={styles.patientInfo}>Address: {patient.address}</Text>
         </View>
@@ -133,7 +129,9 @@ const PatientHistory = () => {
           <TouchableOpacity
             style={styles.addButton}
             onPress={() =>
-              navigation.navigate("AddEditHistoryScreen", { patientId: patient.id })
+              navigation.navigate("AddEditHistoryScreen", {
+                patientId: patient.id,
+              })
             }
           >
             <Ionicons name="add" size={24} color="#fff" />

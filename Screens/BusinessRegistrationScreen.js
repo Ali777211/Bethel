@@ -37,7 +37,7 @@ export default function BusinessRegistrationScreen({ route, navigation }) {
   const [location, setLocation] = useState(business?.location || "");
   const [loading, setLoading] = useState(false);
 
-  const [editMode, setEditMode] = useState(!business); // true when creating
+  const [editMode, setEditMode] = useState(!business);
   const [formValid, setFormValid] = useState(false);
 
   const isEditing = !!business;
@@ -203,10 +203,7 @@ export default function BusinessRegistrationScreen({ route, navigation }) {
           {editMode && (
             <View>
               <TouchableOpacity
-                style={[
-                  styles.button,
-                  !formValid && styles.buttonDisabled,
-                ]}
+                style={[styles.button, !formValid && styles.buttonDisabled]}
                 onPress={handleSubmit}
                 disabled={!formValid || loading}
               >
@@ -229,7 +226,6 @@ export default function BusinessRegistrationScreen({ route, navigation }) {
         </ScrollView>
       </KeyboardAvoidingView>
 
-      {/* Fullscreen loader overlay */}
       {loading && (
         <View style={styles.loaderOverlay}>
           <ActivityIndicator size="large" color="#007BFF" />

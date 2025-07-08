@@ -122,7 +122,6 @@ export default function BusinessesListScreen({ navigation }) {
           <Text style={styles.info}>{item.type}</Text>
           <Text style={styles.info}>{item.location}</Text>
 
-          {/* Edit Button - Owner only */}
           {isOwner && (
             <TouchableOpacity
               style={styles.manageBtn}
@@ -136,8 +135,7 @@ export default function BusinessesListScreen({ navigation }) {
             </TouchableOpacity>
           )}
 
-          {/* Manage (Dashboard) - Owner & Admin */}
-          {(isOwner || isAdmin) && (
+          {isOwner && (
             <TouchableOpacity
               style={[styles.manageBtn, { backgroundColor: "#10B981" }]}
               onPress={() =>
@@ -150,7 +148,6 @@ export default function BusinessesListScreen({ navigation }) {
             </TouchableOpacity>
           )}
 
-          {/* Delete Button - Owner & Admin */}
           {(isOwner || isAdmin) && (
             <TouchableOpacity
               style={styles.deleteBtn}
@@ -172,7 +169,6 @@ export default function BusinessesListScreen({ navigation }) {
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" />
 
-      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={24} color="#000" />

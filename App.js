@@ -1,26 +1,24 @@
-import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, Text, View } from 'react-native';
-import RootNavigation from './Navigation/RootNavigation';
+import { StatusBar } from "expo-status-bar";
+import { StyleSheet, Text, View } from "react-native";
+import RootNavigation from "./Navigation/RootNavigation";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { AuthProvider } from "./Managers/AuthContext";
 
 export default function App() {
   return (
-    <GestureHandlerRootView>
-      <RootNavigation/>
-    </GestureHandlerRootView>
-    // <RootNavigation/>
-    // <View style={styles.container}>
-    //   <Text>Open up App.js to start working on your app!</Text>
-    //   <StatusBar style="auto" />
-    // </View>
+    <AuthProvider>
+      <GestureHandlerRootView>
+        <RootNavigation />
+      </GestureHandlerRootView>
+    </AuthProvider>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
+    backgroundColor: "#fff",
+    alignItems: "center",
+    justifyContent: "center",
   },
 });

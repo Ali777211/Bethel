@@ -99,7 +99,6 @@ export default function AddVehicleScreen({ route, navigation }) {
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#fff" />
 
-      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={24} color="#000" />
@@ -108,7 +107,7 @@ export default function AddVehicleScreen({ route, navigation }) {
         <Text style={styles.headerTitle}>
           {isEdit ? "Edit Vehicle" : "Add Vehicle"}
         </Text>
-        <View style={{ width: 24 }} /> {/* Spacer for symmetry */}
+        <View style={{ width: 24 }} />
       </View>
 
       <ScrollView contentContainerStyle={styles.scroll}>

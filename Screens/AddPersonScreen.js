@@ -11,7 +11,9 @@ import {
 } from "react-native";
 import { Picker } from "@react-native-picker/picker";
 import { SafeAreaView } from "react-native-safe-area-context";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
+
 import {
   collection,
   addDoc,
@@ -20,7 +22,7 @@ import {
   updateDoc,
   serverTimestamp,
 } from "firebase/firestore";
-import { auth, firestore } from "../Managers/FirebaseManager";
+import { firestore } from "../Managers/FirebaseManager";
 
 export default function AddPersonScreen({ route, navigation }) {
   const { entityType, item } = route.params || {};
@@ -29,6 +31,15 @@ export default function AddPersonScreen({ route, navigation }) {
     Alert.alert("Error", "No entity type provided.");
     return null;
   }
+
+  const shiftOptions = ["Morning", "Afternoon", "Evening", "Night"];
+
+  const availabilityByShift = {
+    Morning: ["Mon-Fri, 9AM-12PM", "Mon, Wed, Fri, 9AM-11AM"],
+    Afternoon: ["Mon-Fri, 12PM-4PM", "Tue, Thu, 1PM-5PM"],
+    Evening: ["Mon-Fri, 4PM-8PM"],
+    Night: ["Mon-Fri, 8PM-12AM"],
+  };
 
   const [form, setForm] = useState({
     name: "",
@@ -41,23 +52,20 @@ export default function AddPersonScreen({ route, navigation }) {
     contactNumber: "",
     address: "",
   });
-  const [loading, setLoading] = useState(false);
 
-  const shiftOptions = ["Morning", "Afternoon", "Evening", "Night"];
-  const availabilityByShift = {
-    Morning: ["Mon-Fri, 9AM-12PM", "Mon, Wed, Fri, 9AM-11AM"],
-    Afternoon: ["Mon-Fri, 12PM-4PM", "Tue, Thu, 1PM-5PM"],
-    Evening: ["Mon-Fri, 4PM-8PM"],
-    Night: ["Mon-Fri, 8PM-12AM"],
-  };
-  const doctorRoles = [
-    "General Physician",
-    "Surgeon",
-    "Pediatrician",
-    "Dermatologist",
-  ];
-  const staffRoles = ["Nurse", "Receptionist", "Pharmacist", "Lab Technician"];
-  const user = auth.currentUser;
+  const [loading, setLoading] = useState(false);
+  const [userId, setUserId] = useState(null);
+
+  useEffect(() => {
+    const fetchUser = async () => {
+      const storedUser = await AsyncStorage.getItem("userData");
+      if (storedUser) {
+        const parsed = JSON.parse(storedUser);
+        setUserId(parsed.uid);
+      }
+    };
+    fetchUser();
+  }, []);
 
   useEffect(() => {
     if (item) {
@@ -88,160 +96,205 @@ export default function AddPersonScreen({ route, navigation }) {
       Alert.alert("Validation", "Name is required.");
       return;
     }
+
     setLoading(true);
+
     try {
-      const userDoc = await getDoc(doc(firestore, "users", user.uid));
-      const hospitalId = userDoc.data()?.hospitalId;
+      const userDocRef = doc(firestore, "users", userId);
+      const userDocSnap = await getDoc(userDocRef);
+      const hospitalId = userDocSnap.data()?.hospitalId;
+
       if (!hospitalId) {
-        Alert.alert("Error", "Hospital ID not found.");
+        Alert.alert("Error", "Hospital ID not found for this user.");
         setLoading(false);
         return;
       }
+
       let collectionName = "";
-      if (entityType === "Doctors") collectionName = "doctors";
-      else if (entityType === "Staff") collectionName = "staff";
-      else if (entityType === "Patients") collectionName = "patients";
-      else {
-        Alert.alert("Error", "Invalid entity type.");
-        setLoading(false);
-        return;
+      switch (entityType) {
+        case "Doctors":
+          collectionName = "doctors";
+          break;
+        case "Staff":
+          collectionName = "staff";
+          break;
+        case "Patients":
+          collectionName = "patients";
+          break;
+        default:
+          Alert.alert("Error", "Invalid entity type.");
+          setLoading(false);
+          return;
       }
-      const dataToSave = {
+
+      let dataToSave = {
         ...form,
         hospitalId,
         updatedAt: serverTimestamp(),
       };
-      if (item?.id) {
-        await updateDoc(doc(firestore, collectionName, item.id), dataToSave);
-        Alert.alert("Success", "Entry updated successfully");
-      } else {
-        await addDoc(collection(firestore, collectionName), {
-          ...dataToSave,
-          createdAt: serverTimestamp(),
-        });
-        Alert.alert("Success", "Entry created successfully.");
-      }
-      navigation.goBack();
-    } catch (err) {
-      console.error(err);
-      Alert.alert("Error", "Could not save entry.");
-    }
-    setLoading(false);
-  };
-  console.log("Item",item)
 
+      if (item && item.id) {
+        const docRef = doc(firestore, collectionName, item.id);
+        await updateDoc(docRef, dataToSave);
+        Alert.alert(
+          "Success",
+          `${entityType.slice(0, -1)} updated successfully!`
+        );
+      } else {
+        dataToSave.createdAt = serverTimestamp();
+        await addDoc(collection(firestore, collectionName), dataToSave);
+        Alert.alert(
+          "Success",
+          `${entityType.slice(0, -1)} added successfully!`
+        );
+      }
+
+      navigation.goBack();
+    } catch (error) {
+      console.error("Error saving document:", error);
+      Alert.alert("Error", "Failed to save entry.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const doctorRoles = [
+    "General Physician",
+    "Surgeon",
+    "Pediatrician",
+    "Dermatologist",
+  ];
+  const staffRoles = ["Nurse", "Receptionist", "Pharmacist", "Lab Technician"];
   const disabled = loading;
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity
-          onPress={() => {
-            if (!disabled) navigation.goBack();
-          }}
-          style={styles.backButton}
-          disabled={disabled}
-        >
-          <Ionicons name="arrow-back" size={24} color="#1E3A8A" />
+        <TouchableOpacity onPress={() => navigation.goBack()}>
+          <Ionicons name="arrow-back" size={24} color="#000" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>
-          {item ? `Update ${entityType.slice(0, -1)}` : `Add ${entityType.slice(0, -1)}`}
+          {item
+            ? `Update ${entityType.slice(0, -1)}`
+            : `Add ${entityType.slice(0, -1)}`}
         </Text>
-        <View style={{ width: 40 }} />
+        <View style={{ width: 24 }} />
       </View>
 
       <ScrollView
-        contentContainerStyle={styles.scroll}
+        contentContainerStyle={styles.scrollContainer}
         keyboardShouldPersistTaps="handled"
-        scrollEnabled={!disabled}
+        scrollEnabled={!loading}
       >
-        <TextInput
-          style={styles.input}
-          value={form.name}
-          onChangeText={(t) => handleChange("name", t)}
-          placeholder="Name"
-          editable={!disabled}
-        />
-
         {(entityType === "Doctors" || entityType === "Staff") && (
           <>
-            <View style={styles.pickerBox}>
-              <Picker
-                selectedValue={form.role}
-                onValueChange={(v) => handleChange("role", v)}
-                enabled={!disabled}
-              >
-                <Picker.Item label="Select Role" value="" />
-                {(entityType === "Doctors" ? doctorRoles : staffRoles).map((r) => (
-                  <Picker.Item key={r} label={r} value={r} />
-                ))}
-              </Picker>
-            </View>
-            <View style={styles.pickerBox}>
-              <Picker
-                selectedValue={form.shift}
-                onValueChange={(v) => handleChange("shift", v)}
-                enabled={!disabled}
-              >
-                <Picker.Item label="Select Shift" value="" />
-                {shiftOptions.map((s) => (
-                  <Picker.Item key={s} label={s} value={s} />
-                ))}
-              </Picker>
-            </View>
-            <View style={styles.pickerBox}>
-              <Picker
-                selectedValue={form.availability}
-                onValueChange={(v) => handleChange("availability", v)}
-                enabled={!disabled && !!form.shift}
-              >
-                <Picker.Item label="Select availability" value="" />
-                {(availabilityByShift[form.availability] || []).map((avail) => (
-                  <Picker.Item key={avail} label={avail} value={avail} />
-                ))}
-              </Picker>
-            </View>
+            <Text style={styles.label}>Name</Text>
+            <TextInput
+              style={styles.input}
+              value={form.name}
+              onChangeText={(text) => handleChange("name", text)}
+              placeholder="Enter name"
+              editable={!disabled}
+            />
+
+            <Text style={styles.label}>Role</Text>
+            <Picker
+              selectedValue={form.role}
+              onValueChange={(value) => handleChange("role", value)}
+              enabled={!disabled}
+              style={styles.input}
+            >
+              <Picker.Item label="Select a role" value="" />
+              {(entityType === "Doctors" ? doctorRoles : staffRoles).map(
+                (role) => (
+                  <Picker.Item key={role} label={role} value={role} />
+                )
+              )}
+            </Picker>
+
+            <Text style={styles.label}>Shift</Text>
+            <Picker
+              selectedValue={form.shift}
+              onValueChange={(value) => handleChange("shift", value)}
+              enabled={!disabled}
+              style={styles.input}
+            >
+              <Picker.Item label="Select a shift" value="" />
+              {shiftOptions.map((shift) => (
+                <Picker.Item key={shift} label={shift} value={shift} />
+              ))}
+            </Picker>
+
+            <Text style={styles.label}>Availability</Text>
+            <Picker
+              selectedValue={form.availability}
+              onValueChange={(value) => handleChange("availability", value)}
+              enabled={!disabled && !!form.shift}
+              style={styles.input}
+            >
+              <Picker.Item label="Select availability" value="" />
+              {(availabilityByShift[form.shift] || []).map((avail) => (
+                <Picker.Item key={avail} label={avail} value={avail} />
+              ))}
+            </Picker>
           </>
         )}
 
         {entityType === "Patients" && (
           <>
+            <Text style={styles.label}>Name</Text>
             <TextInput
               style={styles.input}
-              value={form.age}
-              onChangeText={(t) => handleChange("age", t)}
-              placeholder="Age"
-              keyboardType="numeric"
+              value={form.name}
+              onChangeText={(text) => handleChange("name", text)}
+              placeholder="Enter name"
               editable={!disabled}
             />
+
+            <Text style={styles.label}>Age</Text>
+            <TextInput
+              style={styles.input}
+              keyboardType="numeric"
+              value={form.age}
+              onChangeText={(text) => handleChange("age", text)}
+              placeholder="Enter age"
+              editable={!disabled}
+            />
+
+            <Text style={styles.label}>Gender</Text>
             <TextInput
               style={styles.input}
               value={form.gender}
-              onChangeText={(t) => handleChange("gender", t)}
-              placeholder="Gender"
+              onChangeText={(text) => handleChange("gender", text)}
+              placeholder="Male / Female / Other"
               editable={!disabled}
             />
+
+            <Text style={styles.label}>Blood Group</Text>
             <TextInput
               style={styles.input}
               value={form.bloodGroup}
-              onChangeText={(t) => handleChange("bloodGroup", t)}
-              placeholder="Blood Group"
+              onChangeText={(text) => handleChange("bloodGroup", text)}
+              placeholder="e.g. O+, A-"
               editable={!disabled}
             />
+
+            <Text style={styles.label}>Contact Number</Text>
             <TextInput
               style={styles.input}
-              value={form.contactNumber}
-              onChangeText={(t) => handleChange("contactNumber", t)}
-              placeholder="Contact Number"
               keyboardType="phone-pad"
+              value={form.contactNumber}
+              onChangeText={(text) => handleChange("contactNumber", text)}
+              placeholder="e.g. 1234567890"
               editable={!disabled}
             />
+
+            <Text style={styles.label}>Address</Text>
             <TextInput
               style={[styles.input, { height: 80 }]}
               value={form.address}
-              onChangeText={(t) => handleChange("address", t)}
-              placeholder="Address"
+              onChangeText={(text) => handleChange("address", text)}
+              placeholder="Enter address"
               multiline
               editable={!disabled}
             />
@@ -254,77 +307,66 @@ export default function AddPersonScreen({ route, navigation }) {
           disabled={disabled}
         >
           {loading ? (
-            <ActivityIndicator size="small" color="#fff" />
+            <ActivityIndicator size="small" color="#FFF" />
           ) : (
-            <Text style={styles.buttonText}>{item ? "Update" : "Save"}</Text>
+            <Text style={styles.buttonText}>{item ? "Update" : "Submit"}</Text>
           )}
         </TouchableOpacity>
       </ScrollView>
-
-      {loading && (
-        <View style={styles.loadingOverlay} pointerEvents="auto">
-          <ActivityIndicator size="large" color="#2563eb" />
-        </View>
-      )}
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#f2f2f2" },
+  container: {
+    flex: 1,
+    backgroundColor: "#F0F4F8",
+  },
   header: {
     flexDirection: "row",
     alignItems: "center",
-    padding: 12,
-    backgroundColor: "#fff",
+    padding: 16,
+    justifyContent: "space-between",
+    backgroundColor: "#FFFFFF",
     borderBottomWidth: 1,
-    borderBottomColor: "#E5E7EB",
-  },
-  backButton: {
-    padding: 4,
-    marginRight: 8,
+    borderBottomColor: "#E2E8F0",
   },
   headerTitle: {
-    flex: 1,
     fontSize: 18,
     fontWeight: "bold",
-    textAlign: "center",
-    color: "#1E3A8A",
+    color: "#1E293B",
   },
-  scroll: { padding: 16 },
+  scrollContainer: {
+    padding: 16,
+    paddingBottom: 100,
+  },
+  label: {
+    marginTop: 10,
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#1E293B",
+  },
   input: {
-    backgroundColor: "#fff",
     borderWidth: 1,
-    borderColor: "#ccc",
+    borderColor: "#CBD5E1",
     borderRadius: 6,
-    padding: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
     marginBottom: 12,
-    fontSize: 16,
-  },
-  pickerBox: {
-    backgroundColor: "#fff",
-    borderWidth: 1,
-    borderColor: "#ccc",
-    borderRadius: 6,
-    marginBottom: 12,
+    backgroundColor: "#FFFFFF",
+    fontSize: 14,
+    color: "#1E293B",
   },
   button: {
-    backgroundColor: "#2563eb",
-    padding: 14,
+    backgroundColor: "#1E3A8A",
+    paddingVertical: 14,
     borderRadius: 6,
     alignItems: "center",
     marginTop: 10,
   },
   buttonText: {
-    color: "#fff",
-    fontWeight: "600",
+    color: "#FFFFFF",
+    fontWeight: "bold",
     fontSize: 16,
-  },
-  loadingOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(255,255,255,0.7)",
-    justifyContent: "center",
-    alignItems: "center",
-    zIndex: 100,
   },
 });

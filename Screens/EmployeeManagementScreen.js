@@ -45,25 +45,21 @@ export default function EmployeeManagementScreen({ navigation }) {
   }, [business?.id]);
 
   const handleDelete = (id, name) => {
-    Alert.alert(
-      "Delete Employee",
-      `Remove ${name}?`,
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              await deleteDoc(doc(firestore, "employees", id));
-            } catch (error) {
-              console.error(error);
-              Alert.alert("Error", "Could not delete employee.");
-            }
-          },
+    Alert.alert("Delete Employee", `Remove ${name}?`, [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Delete",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            await deleteDoc(doc(firestore, "employees", id));
+          } catch (error) {
+            console.error(error);
+            Alert.alert("Error", "Could not delete employee.");
+          }
         },
-      ]
-    );
+      },
+    ]);
   };
 
   const renderItem = ({ item }) => (
@@ -84,7 +80,12 @@ export default function EmployeeManagementScreen({ navigation }) {
       <View style={styles.actions}>
         <TouchableOpacity
           style={styles.editButton}
-          onPress={() => navigation.navigate("AddEmployeesScreen", { employee: item, business })}
+          onPress={() =>
+            navigation.navigate("AddEmployeesScreen", {
+              employee: item,
+              business,
+            })
+          }
         >
           <Ionicons name="create-outline" size={16} color="#2563EB" />
           <Text style={styles.editText}>Edit</Text>
@@ -118,7 +119,9 @@ export default function EmployeeManagementScreen({ navigation }) {
       <View style={styles.bottomButtonWrapper}>
         <TouchableOpacity
           style={styles.addButton}
-          onPress={() => navigation.navigate("AddEmployeesScreen", { business })}
+          onPress={() =>
+            navigation.navigate("AddEmployeesScreen", { business })
+          }
         >
           <Ionicons name="add" size={20} color="#fff" />
           <Text style={styles.addText}>Add Employee</Text>

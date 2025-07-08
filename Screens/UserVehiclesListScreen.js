@@ -101,7 +101,6 @@ export default function UserVehiclesListScreen({ navigation }) {
 
   const onRefresh = () => {
     setRefreshing(true);
-    // onSnapshot auto updates
   };
 
   const renderItem = ({ item }) => (
@@ -117,18 +116,15 @@ export default function UserVehiclesListScreen({ navigation }) {
       </View>
       <TouchableOpacity
         onPress={() =>
-          Alert.alert(
-            "Delete Vehicle",
-            `Delete ${item.make} ${item.model}?`,
-            [
-              { text: "Cancel", style: "cancel" },
-              {
-                text: "Delete",
-                style: "destructive",
-                onPress: () => deleteVehicle(item.id, `${item.make} ${item.model}`),
-              },
-            ]
-          )
+          Alert.alert("Delete Vehicle", `Delete ${item.make} ${item.model}?`, [
+            { text: "Cancel", style: "cancel" },
+            {
+              text: "Delete",
+              style: "destructive",
+              onPress: () =>
+                deleteVehicle(item.id, `${item.make} ${item.model}`),
+            },
+          ])
         }
         disabled={deletingId === item.id}
       >
@@ -159,7 +155,6 @@ export default function UserVehiclesListScreen({ navigation }) {
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#fff" />
 
-      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={24} color="#000" />
@@ -170,7 +165,6 @@ export default function UserVehiclesListScreen({ navigation }) {
         <View style={{ width: 24 }} />
       </View>
 
-      {/* List */}
       <FlatList
         data={vehicles}
         keyExtractor={(item) => item.id}
@@ -188,7 +182,6 @@ export default function UserVehiclesListScreen({ navigation }) {
         }
       />
 
-      {/* Add New Vehicle Button */}
       {userRole !== "admin" && (
         <View style={styles.bottomButtonContainer}>
           <TouchableOpacity
@@ -233,12 +226,10 @@ const styles = StyleSheet.create({
     marginHorizontal: 12,
     marginVertical: 6,
     borderRadius: 8,
-    // Shadow for iOS
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
     shadowRadius: 2,
-    // Elevation for Android
     elevation: 2,
   },
   itemTitle: {

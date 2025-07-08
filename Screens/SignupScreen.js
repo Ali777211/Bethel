@@ -7,6 +7,7 @@ import {
   StyleSheet,
   Alert,
   ActivityIndicator,
+  Modal,
 } from "react-native";
 import { createUserWithEmailAndPassword } from "firebase/auth";
 import { doc, setDoc } from "firebase/firestore";
@@ -37,7 +38,11 @@ export default function SignupScreen({ navigation }) {
 
     setLoading(true);
     try {
-      const userCred = await createUserWithEmailAndPassword(auth, email, password);
+      const userCred = await createUserWithEmailAndPassword(
+        auth,
+        email,
+        password
+      );
       const user = userCred.user;
 
       await setDoc(doc(firestore, "users", user.uid), {
@@ -46,7 +51,6 @@ export default function SignupScreen({ navigation }) {
         role: "citizen",
         createdAt: new Date(),
       });
-
 
       Alert.alert("Success", "Account created successfully!");
       navigation.navigate("LoginScreen");
@@ -58,7 +62,7 @@ export default function SignupScreen({ navigation }) {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={styles.container} pointerEvents={loading ? "none" : "auto"}>
       <Text style={styles.title}>Create Account</Text>
 
       <TextInput
@@ -67,7 +71,6 @@ export default function SignupScreen({ navigation }) {
         value={name}
         onChangeText={setName}
       />
-
       <TextInput
         style={styles.input}
         placeholder="Email"
@@ -76,7 +79,6 @@ export default function SignupScreen({ navigation }) {
         keyboardType="email-address"
         autoCapitalize="none"
       />
-
       <TextInput
         style={styles.input}
         placeholder="Password"
@@ -84,7 +86,6 @@ export default function SignupScreen({ navigation }) {
         onChangeText={setPassword}
         secureTextEntry
       />
-
       <TextInput
         style={styles.input}
         placeholder="Confirm Password"
@@ -93,17 +94,20 @@ export default function SignupScreen({ navigation }) {
         secureTextEntry
       />
 
-      {loading ? (
-        <ActivityIndicator size="large" color="#4F46E5" />
-      ) : (
-        <TouchableOpacity style={styles.button} onPress={handleSignup}>
-          <Text style={styles.buttonText}>Sign Up</Text>
-        </TouchableOpacity>
-      )}
+      <TouchableOpacity style={styles.button} onPress={handleSignup}>
+        <Text style={styles.buttonText}>Sign Up</Text>
+      </TouchableOpacity>
 
       <TouchableOpacity onPress={() => navigation.goBack()}>
         <Text style={styles.link}>Already have an account? Log In</Text>
       </TouchableOpacity>
+
+      <Modal transparent visible={loading}>
+        <View style={styles.modalOverlay}>
+          <ActivityIndicator size="large" color="#4F46E5" />
+          <Text style={styles.modalText}>Creating Account...</Text>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -147,5 +151,17 @@ const styles = StyleSheet.create({
     color: "#4F46E5",
     textAlign: "center",
     marginTop: 8,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.25)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  modalText: {
+    marginTop: 10,
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "600",
   },
 });

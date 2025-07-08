@@ -16,13 +16,7 @@ import { Picker } from "@react-native-picker/picker";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { auth, firestore } from "../Managers/FirebaseManager";
-import {
-  collection,
-  addDoc,
-  doc,
-  setDoc,
-  deleteDoc,
-} from "firebase/firestore";
+import { collection, addDoc, doc, setDoc, deleteDoc } from "firebase/firestore";
 import { createUserWithEmailAndPassword } from "firebase/auth";
 
 export default function AddHospitalScreen({ navigation }) {
@@ -123,7 +117,6 @@ export default function AddHospitalScreen({ navigation }) {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header */}
       <View style={styles.headerContainer}>
         <TouchableOpacity
           onPress={() => navigation.goBack()}
@@ -135,7 +128,6 @@ export default function AddHospitalScreen({ navigation }) {
         <View style={styles.headerSpacer} />
       </View>
 
-      {/* Overlay loader */}
       {loading && (
         <View style={styles.loadingOverlay}>
           <ActivityIndicator size="large" color="#2563EB" />
@@ -165,9 +157,15 @@ export default function AddHospitalScreen({ navigation }) {
               <Picker.Item label="General Hospital" value="General Hospital" />
               <Picker.Item label="Clinic" value="Clinic" />
               <Picker.Item label="Cardiac Center" value="Cardiac Center" />
-              <Picker.Item label="Children's Hospital" value="Children's Hospital" />
+              <Picker.Item
+                label="Children's Hospital"
+                value="Children's Hospital"
+              />
               <Picker.Item label="Eye Hospital" value="Eye Hospital" />
-              <Picker.Item label="Orthopedic Center" value="Orthopedic Center" />
+              <Picker.Item
+                label="Orthopedic Center"
+                value="Orthopedic Center"
+              />
             </Picker>
           </View>
 
@@ -232,7 +230,7 @@ const styles = StyleSheet.create({
     color: "#111827",
   },
   headerSpacer: {
-    width: 24, // to balance the back button
+    width: 24,
   },
   formContainer: {
     padding: 20,

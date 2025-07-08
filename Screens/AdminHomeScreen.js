@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useContext } from "react";
 import {
   View,
   Text,
@@ -11,19 +11,17 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { auth } from "../Managers/FirebaseManager";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import * as Updates from "expo-updates";
-
+import { AuthContext } from "../Managers/AuthContext";
 
 const { width } = Dimensions.get("window");
 
 export default function AdminHomeScreen({ navigation }) {
+  const { logout } = useContext(AuthContext);
+
   const handleLogout = async () => {
     try {
       await auth.signOut();
-    //   navigation.replace("Login");
-    await AsyncStorage.removeItem("userData");
-    Updates.reloadAsync();
+      await logout();
     } catch (error) {
       console.error("Logout failed:", error);
     }
